@@ -1,4 +1,4 @@
-package com.ish.awtest2;
+package com.ish.awtest2.pincode;
 
 import android.app.Service;
 import android.content.Context;
@@ -20,6 +20,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.ish.awtest2.R;
 import com.ish.awtest2.bean.PinCodeKnockData;
 import com.ish.awtest2.bean.MyAudioData;
 import com.ish.awtest2.func.FFT;
@@ -297,6 +298,7 @@ public class PinCodeTestActivity extends WearableActivity implements SensorEvent
                     mTextViewCount.setText("0");
                     btn.setText("START");
                     clearCircle();
+                    circlestate = 0;
                 } else {
                     //fingerImage.setVisibility(View.VISIBLE);
                     handler.postDelayed(runnable, 1000);

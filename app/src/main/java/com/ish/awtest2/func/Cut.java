@@ -65,8 +65,53 @@ public class Cut {
                 maxStartPos = i;
             }
         }
-        Log.d("pso", "cutMoutain2: " + maxStartPos);
+        Log.d("max", "max " + maxValue);
         System.arraycopy(signal,maxStartPos-spaceNumber,result,0,finalSize);
+        return result;
+    }
+
+    public static Double[] cutMoutain2(Double[] signal,int finalSize,int sPos,int sNumber,int axis){
+        startPoint = sPos;
+        spaceNumber = sNumber;
+        int realSize = finalSize - spaceNumber;
+        spaceNumber = spaceNumber/2;
+        result = new Double[finalSize];
+        int maxStartPos=startPoint;
+        double maxValue = 0,sumValue = 0;
+        for(int i=startPoint;i<startPoint+realSize;i++){
+            maxValue += Math.abs(signal[i]);
+        }
+        for(int i=startPoint+1;i<signal.length-realSize-spaceNumber;i++){
+            sumValue = 0;
+            //计算当前32个点的能量；
+            for(int j=i;j<i+realSize;j++){
+                sumValue+=Math.abs(signal[j]);
+            }
+            if(sumValue>maxValue){
+                maxValue = sumValue;
+                maxStartPos = i;
+            }
+        }
+        System.arraycopy(signal,maxStartPos-spaceNumber,result,0,finalSize);
+        //判断能量大小，xy轴大于2.5 ,z轴大于3.5，否则为手臂晃动
+        switch (axis){
+            case 1:
+                if(maxValue<2.1){
+                    result[0] = 0.0;
+                }
+                break;
+            case 2:
+                if(maxValue<2.1){
+                    result[0] = 0.0;
+                }
+                break;
+            case 3:
+                if(maxValue<3.5){
+                    result[0] = 0.0;
+                }
+                break;
+                default:
+        }
         return result;
     }
 }

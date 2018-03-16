@@ -1,4 +1,4 @@
-package com.ish.awtest2;
+package com.ish.awtest2.singleTouch;
 
 import android.app.Service;
 import android.content.Context;
@@ -28,6 +28,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.ish.awtest2.R;
 import com.ish.awtest2.bean.KnockData;
 import com.ish.awtest2.bean.MyAudioData;
 import com.ish.awtest2.func.Cut;
@@ -35,6 +36,7 @@ import com.ish.awtest2.func.FFT;
 import com.ish.awtest2.func.Filter;
 import com.ish.awtest2.func.GCC;
 import com.ish.awtest2.func.IIRFilter;
+import com.ish.awtest2.func.KNNAlgorithm;
 import com.ish.awtest2.func.LimitQueue;
 import com.ish.awtest2.func.Trainer;
 import com.ish.awtest2.mview.TickView;
@@ -98,7 +100,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
     /**
      * deviation 振动改变阈值
      */
-    private double deviation = 0.5;
+    private double deviation = 0.35;
     /**
      * knockCount 记录敲击次数
      */
@@ -260,7 +262,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
         SharedPreferences p = getApplicationContext().getSharedPreferences("Myprefs",
                 Context.MODE_PRIVATE);
         threshold = p.getFloat("threshold", threshold);
-        threshold2 = p.getFloat("threshold2", threshold2);
+        //threshold2 = p.getFloat("threshold2", threshold2);
         //取出训练数据
         List<KnockData> allDatas = DataSupport.findAll(KnockData.class);
         trainData = new Double[allDatas.size()][finalLength];
@@ -328,70 +330,73 @@ public class TestActivity extends WearableActivity implements SensorEventListene
 
                     dataz = IIRFilter.highpass(dataz,IIRFilter.TYPE_AMPITUDE);
                     dataz = IIRFilter.lowpass(dataz,IIRFilter.TYPE_AMPITUDE);
-//                    for (int i = 0; i < data.length; i++) {
-//                        s = s + "," + data[i];
-//                    }
-//                    Log.d(TAG, "onSensorChanged: Data" + s);
-//                    s = "";
-//                    Double[] cutData = Cut.cutMoutain(data, 50);
 
-                    Double[] cutDatax  = new Double[160];
-                    Double[] cutDatay  = new Double[160];
-                    Double[] cutDataz  = new Double[160];
-                    System.arraycopy(datax,40,cutDatax,0,160);
-                    System.arraycopy(datay,40,cutDatay,0,160);
-                    System.arraycopy(dataz,40,cutDataz,0,160);
-                    Double[] gccDatax = GCC.gcc(firstKnockx, cutDatax);
-                    Double[] gccDatay = GCC.gcc(firstKnocky, cutDatay);
-                    Double[] gccDataz = GCC.gcc(firstKnockz, cutDataz);
+                    Double[] cutDatax = Cut.cutMoutain2(datax, 84, 35, 60,1);
+                    Double[] cutDatay = Cut.cutMoutain2(datay, 90, 35, 60,2);
+                    Double[] cutDataz = Cut.cutMoutain2(dataz, 84, 35, 60,3);
 
-                    //加上fft的,得到最终数据
-                    Double[] fftDatax = FFT.getHalfFFTData(gccDatax);
-                    Double[] fftDatay = FFT.getHalfFFTData(gccDatay);
-                    Double[] fftDataz = FFT.getHalfFFTData(gccDataz);
-                    System.arraycopy(gccDatax, 0, finalData, 0, ampLength);
-                    System.arraycopy(gccDatay, 0, finalData, ampLength, ampLength);
-                    System.arraycopy(gccDataz, 0, finalData, ampLength*2, ampLength);
-                    System.arraycopy(fftDatax, 0, finalData, ampLength*3, ampLength/2);
-                    System.arraycopy(fftDatay, 0, finalData, ampLength*3+ampLength/2, ampLength/2);
-                    System.arraycopy(fftDataz, 0, finalData, ampLength*4, ampLength/2);
-//                    for (int i = 0; i < finalData.length; i++) {
-//                        s = s + "," + finalData[i];
-//                    }
-//                    Log.d(TAG, "onSensorChanged: finalData" + s);
-//                    s = "";
-                    //将新的敲击数据加入对比
-                    double newDis = Trainer.getNewDis(trainData, finalData);
-                    //double newDis2 = Trainer.getNewDis(audioTrainData, finalData);
-                    Log.d(TAG, "onSensorChanged: " + newDis);
+                    boolean ifmove = false;
+                    //判断是否为手臂晃动
+                    if(cutDatax[0]==0.0 || cutDatay[0]==0.0 || cutDataz[0]==0.0){
+                        ifmove = true;
+                    }
+
+                    if(!ifmove){
+                        Double[] gccDatax = GCC.gcc(firstKnockx, cutDatax);
+                        Double[] gccDatay = GCC.gcc(firstKnocky, cutDatay);
+                        Double[] gccDataz = GCC.gcc(firstKnockz, cutDataz);
+
+                        //加上fft的,得到最终数据
+                        Double[] fftDatax = FFT.getHalfFFTData(gccDatax);
+                        Double[] fftDatay = FFT.getHalfFFTData(gccDatay);
+                        Double[] fftDataz = FFT.getHalfFFTData(gccDataz);
+                        System.arraycopy(gccDatax, 0, finalData, 0, ampLength);
+                        System.arraycopy(gccDatay, 0, finalData, ampLength, ampLength);
+                        System.arraycopy(gccDataz, 0, finalData, ampLength*2, ampLength);
+                        System.arraycopy(fftDatax, 0, finalData, ampLength*3, ampLength/2);
+                        System.arraycopy(fftDatay, 0, finalData, ampLength*3+ampLength/2, ampLength/2);
+                        System.arraycopy(fftDataz, 0, finalData, ampLength*4, ampLength/2);
+                        for (int i = 0; i < finalData.length; i++) {
+                            s = s + "," + finalData[i];
+                        }
+                        Log.d(TAG, "onSensorChanged: finalData" + s);
+                        s = "";
+                        //将新的敲击数据加入对比
+                        //double newDis = Trainer.getNewDis(trainData, finalData);
+                        KNNAlgorithm knnAlgorithm = new KNNAlgorithm(trainData);
+                        boolean isme = knnAlgorithm.isMe(finalData);
+
+                        //Log.d(TAG, "onSensorChanged: " + newDis);
 
 
-                    //隐藏手指，显示动画
-                    fingerImage.setVisibility(GONE);
-                    tickView.setAlpha(1);
-                    //失败
-                    if (threshold >= newDis) {
-                        tickView.setType(TickView.TYPE_SUCCESS);
-                        tickView.setChecked(true);
-                        mTextViewCount.setText("SUCESSED");
-                        recLen = 2;
-                        handler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                tickView.startAnimation(disappearAnimation);
-                            }
-                        },1500);
-                    } else {
-                        tickView.setType(TickView.TYPE_ERROR);
-                        tickView.setChecked(true);
-                        mTextViewCount.setText("TRY AGAIN");
-                        recLen = 2;
-                        handler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                tickView.startAnimation(disappearAnimation);
-                            }
-                        },1500);
+                        //隐藏手指，显示动画
+                        fingerImage.setVisibility(GONE);
+                        tickView.setAlpha(1);
+                        //失败
+                        //if (threshold >= newDis) {
+                        if (isme) {
+                            tickView.setType(TickView.TYPE_SUCCESS);
+                            tickView.setChecked(true);
+                            mTextViewCount.setText("SUCESSED");
+                            recLen = 2;
+                            handler.postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    tickView.startAnimation(disappearAnimation);
+                                }
+                            },1500);
+                        } else {
+                            tickView.setType(TickView.TYPE_ERROR);
+                            tickView.setChecked(true);
+                            mTextViewCount.setText("TRY AGAIN");
+                            recLen = 2;
+                            handler.postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    tickView.startAnimation(disappearAnimation);
+                                }
+                            },1500);
+                        }
                     }
                     flag = true;
                     ifsaveAmp = true;

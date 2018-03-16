@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@color/white"
     android:padding="@dimen/box_inset_layout_padding"
-    tools:context="com.ish.awtest2.TestActivity"
+    tools:context="com.ish.awtest2.singleTouch.TestActivity"
     tools:deviceIds="wear">
 
     <RelativeLayout

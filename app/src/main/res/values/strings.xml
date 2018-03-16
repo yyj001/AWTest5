@@ -8,4 +8,6 @@
     <string name="title_activity_entry">EntryActivity</string>
     <string name="title_activity_pin_code_main">PinCodeMainActivity</string>
     <string name="title_activity_pin_code_test">PinCodeTestActivity</string>
+    <string name="title_activity_single_touch_train">SingleTouchTrainActivity</string>
+    <string name="title_activity_stadd">STAddActivity</string>
 </resources>

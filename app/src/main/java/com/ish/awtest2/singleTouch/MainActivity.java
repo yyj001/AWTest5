@@ -1,7 +1,5 @@
-package com.ish.awtest2;
+package com.ish.awtest2.singleTouch;
 
-import android.app.Service;
-import android.bluetooth.BluetoothClass;
 import android.content.Context;
 //import android.content.Intent;
 //import android.content.SharedPreferences;
@@ -18,7 +16,6 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Vibrator;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.wearable.activity.WearableActivity;
@@ -26,27 +23,25 @@ import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.ish.awtest2.R;
 import com.ish.awtest2.bean.KnockData;
 import com.ish.awtest2.bean.MyAudioData;
 import com.ish.awtest2.func.Cut;
 import com.ish.awtest2.func.FFT;
-import com.ish.awtest2.func.Filter;
 import com.ish.awtest2.func.GCC;
 import com.ish.awtest2.func.IIRFilter;
+import com.ish.awtest2.func.KNNAlgorithm;
 import com.ish.awtest2.func.LimitQueue;
-import com.ish.awtest2.func.MyMath;
-import com.ish.awtest2.func.Trainer;
 
 import org.litepal.crud.DataSupport;
 import org.litepal.tablemanager.Connector;
 
-import java.time.chrono.MinguoChronology;
 import java.util.List;
 
-import static android.media.AudioRecord.READ_BLOCKING;
 import static android.media.AudioRecord.READ_NON_BLOCKING;
 
 
@@ -55,13 +50,13 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     //view
     private TextView mTextView;
     private TextView mTextViewCount;
+    private EditText editText;
     private Button btn;
     private Button btn2;
     private Button btn3;
     private Button btn4;
-    private Button btn5;
-    private Button btn6;
-
+    private SharedPreferences p;
+    private int range = 10;
     private SensorManager sm;
     private double preValue = 0;
     /**
@@ -230,11 +225,6 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-//                            for(int i=0;i<limit;i++){
-//                               s+=","+data[i];
-//                            }
-//                            Log.d(TAG, ","+s);
-//                            s = "";
                             datax = IIRFilter.highpass(datax, IIRFilter.TYPE_AMPITUDE);
                             datax = IIRFilter.lowpass(datax, IIRFilter.TYPE_AMPITUDE);
 
@@ -253,7 +243,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                             Double[] cutDataz = Cut.cutMoutain2(dataz, 64, 35, 40);
                             //如果是第一个敲击，记录下来，后面的敲击gcc以它对齐
                             if (knockCount == 1) {
-                                System.arraycopy(cutDatax, 18, firstKnockx, 0, ampLength);
+                                System.arraycopy(cutDatax, 10, firstKnockx, 0, ampLength);
                                 System.arraycopy(cutDatay, 18, firstKnocky, 0, ampLength);
                                 System.arraycopy(cutDataz, 18, firstKnockz, 0, ampLength);
                                 Double[] fftDatax = FFT.getHalfFFTData(firstKnockx);
@@ -350,13 +340,13 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
     public void iniView() {
         btn = (Button) findViewById(R.id.btn);
-        btn2 = (Button) findViewById(R.id.btn2);
         btn3 = (Button) findViewById(R.id.btn3);
         btn4 = (Button) findViewById(R.id.btn4);
-        btn5 = (Button) findViewById(R.id.btn5);
-        btn6 = (Button) findViewById(R.id.btn6);
         mTextView = (TextView) findViewById(R.id.text);
         mTextViewCount = (TextView) findViewById(R.id.text_count);
+        editText = (EditText)findViewById(R.id.st_name_edtxt);
+        p = getApplicationContext().getSharedPreferences("Myprefs",
+                Context.MODE_PRIVATE);
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -372,32 +362,31 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                     s = "";
                     handler.removeCallbacks(runnable);
                     mTextViewCount.setText("0");
-                    btn.setText("开始");
+                    btn.setText("start");
                 } else {
-                    //开启录音
-                    //audioRecord.startRecording();
-                    //handler.postDelayed(audioRunnable, 1);
-                    //倒计时
-                    handler.postDelayed(runnable, 200);
-                    recLen = -1;
-                    flag = true;
-                    btn.setText("停止");
-                    knockCount = 0;
+                    //判断是否已经输入名字
+                    if(editText.getText().toString().trim().equals("")){
+                        Toast.makeText(MainActivity.this, "input user's name", Toast.LENGTH_SHORT).show();
+                    }else{
+                        //开启录音
+                        //audioRecord.startRecording();
+                        //handler.postDelayed(audioRunnable, 1);
+                        //倒计时
+                        handler.postDelayed(runnable, 200);
+                        recLen = -1;
+                        flag = true;
+                        btn.setText("stop");
+                        knockCount = 0;
+                    }
                 }
             }
         });
-        btn2.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showDatabase();
-                showAudioDatabase();
-                Toast.makeText(MainActivity.this, "输出成功", Toast.LENGTH_SHORT).show();
-            }
-        });
+
         btn3.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 deleteOneRow();
+                p.edit().putInt("value", -1).apply();
                 Toast.makeText(MainActivity.this, "删除成功", Toast.LENGTH_SHORT).show();
             }
         });
@@ -405,17 +394,14 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         btn4.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                List<KnockData> allDatas = DataSupport.findAll(KnockData.class);
-                Double[][] myData = new Double[allDatas.size()][finalLength];
-                int i = 0;
-                for (KnockData row : allDatas) {
-                    myData[i] = row.getArray();
-                    i++;
-                }
-                double threshold = Trainer.dentID(myData);
                 // get it
-                SharedPreferences p = getApplicationContext().getSharedPreferences("Myprefs",
-                        Context.MODE_PRIVATE);
+                int value = -1;
+                value = p.getInt("value",value);
+                //没有初始化
+                if(value==-1){
+                    value=range/2;
+                }
+                double threshold = train(value);
                 p.edit().putFloat("threshold", (float) threshold).apply();
 
                 //训练音频
@@ -429,21 +415,13 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 //                double threshold2 = Trainer.dentID(myAudioData);
 //                p.edit().putFloat("threshold2", (float) threshold2).apply();
                 Log.d(TAG, "onClick: threshold" + threshold);
-               // Log.d(TAG, "onClick: threshold2" + threshold2);
             }
         });
-        btn5.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, TestActivity.class));
-            }
-        });
-        btn6.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, Main2Activity.class));
-            }
-        });
+        //初始化seekbar范围
+        SharedPreferences p = getApplicationContext().getSharedPreferences("Myprefs",
+                Context.MODE_PRIVATE);
+        p.edit().putInt("range", range).apply();
+
     }
 
 //    public void saveRawAudioData() {
@@ -500,6 +478,21 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 //        handler.post(audioRunnable);
 //    }
 
+
+
+    private double train(int level){
+        List<KnockData> allDatas = DataSupport.findAll(KnockData.class);
+        Double[][] myData = new Double[allDatas.size()][finalLength];
+        int i = 0;
+        for (KnockData row : allDatas) {
+            myData[i] = row.getArray();
+            i++;
+        }
+        //double threshold = Trainer.dentID(myData,level,range);
+        KNNAlgorithm knnAlgorithm = new KNNAlgorithm(myData);
+        double threshold = knnAlgorithm.getThreshold();
+        return threshold;
+    }
     @Override
     public void onPause() {
         sm.unregisterListener(this);

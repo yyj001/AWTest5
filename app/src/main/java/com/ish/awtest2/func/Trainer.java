@@ -17,7 +17,13 @@ import java.util.List;
 public class Trainer {
     public static double dentID(Double[][] myData){
         Double[] weight = calPower(myData);
-        double threshold = getThreshold(myData, weight);
+        double threshold = getThreshold(myData, weight,1,1);
+        return threshold;
+    }
+
+    public static double dentID(Double[][] myData,int level,int range){
+        Double[] weight = calPower(myData);
+        double threshold = getThreshold(myData, weight,level,range);
         return threshold;
     }
 
@@ -50,7 +56,7 @@ public class Trainer {
         return distance;
     }
 
-    public static Double getThreshold(Double[][] trainData, Double[] weight) {
+    public static Double getThreshold(Double[][] trainData, Double[] weight,int level,int range) {
         int trainSize = trainData.length;
         int colNum = trainData[0].length;
         double testProportion = 3; //分3份
@@ -93,13 +99,23 @@ public class Trainer {
             meanDis[i] = s / kflod;
         }
         Arrays.sort(meanDis);
-        int pos = (int) (meanDis.length - Math.ceil(testSize / 10.0));
+        int pos = meanDis.length;
+        Double result = 0.0;
+        if(level >= range/2){
+            int move= level - range/2;
+            pos = (int) (meanDis.length - Math.ceil(testSize / 10.0) - move);
+            result = meanDis[pos];
+        }else{
+            int prePos = range/2 - level;
+            pos = (int) (meanDis.length - Math.ceil(testSize / 10.0));
+            result = meanDis[pos] + (meanDis[pos]-meanDis[pos-prePos]);
+        }
         //int pos = meanDis.length/2;
-        return meanDis[pos];
+        return result;
     }
 //
     public static Double calDis(Double[][] trainSet, Double[] testRow, Double[] weight) {
-        int feature_dim = testRow.length;//35
+        int feature_dim = testRow.length;
         Double[] temp = new Double[feature_dim];
         //遍历每一列
         for (int i = 0; i < feature_dim; i++) {

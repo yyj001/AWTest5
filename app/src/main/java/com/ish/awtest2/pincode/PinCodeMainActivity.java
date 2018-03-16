@@ -1,4 +1,4 @@
-package com.ish.awtest2;
+package com.ish.awtest2.pincode;
 
 import android.content.Context;
 import android.content.Intent;
@@ -17,8 +17,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.ish.awtest2.bean.PinCodeKnockData;
-import com.ish.awtest2.bean.MyAudioData;
+import com.ish.awtest2.R;
 import com.ish.awtest2.bean.PinCodeKnockData;
 import com.ish.awtest2.func.Cut;
 import com.ish.awtest2.func.FFT;

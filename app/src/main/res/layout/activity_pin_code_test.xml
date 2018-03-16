@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@color/white"
     android:padding="@dimen/box_inset_layout_padding"
-    tools:context="com.ish.awtest2.PinCodeTestActivity"
+    tools:context="com.ish.awtest2.pincode.PinCodeTestActivity"
     tools:deviceIds="wear">
 
     <RelativeLayout

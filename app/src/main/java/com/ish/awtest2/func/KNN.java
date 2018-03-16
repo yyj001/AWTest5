@@ -27,7 +27,7 @@ public class KNN{
 			}
 		}
 		//int relustLabel = flag/testNum;
-		int relustLabel = flag%testNum;
+		int relustLabel = flag%4;
 		return relustLabel+1;
 //
 	}
