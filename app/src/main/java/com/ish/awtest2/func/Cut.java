@@ -70,6 +70,16 @@ public class Cut {
         return result;
     }
 
+    /**
+     * 基于能量切割
+     * @param signal
+     * @param finalSize
+     * @param sPos
+     * @param sNumber
+     * @param axis
+     * @return
+     */
+
     public static Double[] cutMoutain2(Double[] signal,int finalSize,int sPos,int sNumber,int axis){
         startPoint = sPos;
         spaceNumber = sNumber;
@@ -96,17 +106,17 @@ public class Cut {
         //判断能量大小，xy轴大于2.5 ,z轴大于3.5，否则为手臂晃动
         switch (axis){
             case 1:
-                if(maxValue<2.1){
+                if(maxValue<1.5){
                     result[0] = 0.0;
                 }
                 break;
             case 2:
-                if(maxValue<2.1){
+                if(maxValue<1.5){
                     result[0] = 0.0;
                 }
                 break;
             case 3:
-                if(maxValue<3.5){
+                if(maxValue<2.5){
                     result[0] = 0.0;
                 }
                 break;

@@ -276,9 +276,8 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                                 System.arraycopy(fftDataz, 0, finalData, ampLength*4, ampLength/2);
                             }
                             KnockData knockData = new KnockData();
-                            knockData.initData(finalData);
+                            knockData.initData(editText.getText().toString(),finalData);
                             knockData.saveThrows();
-
                         }
                     }).start();
                     flag = true;
@@ -421,64 +420,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         SharedPreferences p = getApplicationContext().getSharedPreferences("Myprefs",
                 Context.MODE_PRIVATE);
         p.edit().putInt("range", range).apply();
-
     }
-
-//    public void saveRawAudioData() {
-//        handler.removeCallbacks(audioRunnable);
-//        bufferResultLength = audioRecord.read(rawAudioData, 0, bufferSize);
-//        Log.d(TAG, "onClick: " + bufferResultLength);
-////        int temp = 17920/40;
-////        for (int i = 0; i < 40; i++) {
-////            for (int j = 0; j < temp; j++) {
-////                s = s + "," + rawAudioData[j + temp * i];
-////            }
-////            Log.d(TAG, "radio: " + s);
-////            s = "";
-////        }
-//        Double[] filterAudioData = new Double[bufferResultLength];
-//        for (int i = 0; i < bufferResultLength; i++) {
-//            filterAudioData[i] = Double.valueOf(rawAudioData[i]);
-//        }
-//        filterAudioData = Filter.highpass(filterAudioData);
-//        filterAudioData = Filter.lowpass(filterAudioData);
-////        int temp = bufferResultLength / 140;
-////        for (int i = 0; i < 140; i++) {
-////            for (int j = 0; j < temp; j++) {
-////                s = s + "," + filterAudioData[j + temp * i];
-////            }
-////            Log.d(TAG, "radio:filter " + s);
-////            s = "";
-////        }
-//        Double[] cutAudioData = Cut.cutMoutain(filterAudioData, 1500, 2000, 700, 4, 140);
-////        int temp = 1500 / 10;
-////        for (int i = 0; i < 10; i++) {
-////            for (int j = 0; j < temp; j++) {
-////                s = s + "," + cutAudioData[j + temp * i];
-////            }
-////            Log.d(TAG, "radio:filter " + s);
-////            s = "";
-////        }
-//        //如果第一次，记录第一次的敲击声音
-//        //归一化
-////        Double maxAudio = MyMath.findAbsMax(cutAudioData);
-////        for (int i = 0; i < cutAudioData.length; i++) {
-////            cutAudioData[i] /= maxAudio;
-////        }
-//        MyAudioData myAudioData = new MyAudioData();
-//        if (knockCount == 1) {
-//            System.arraycopy(cutAudioData, 1500 - audioLength, firstAudioData, 0, audioLength);
-//            myAudioData.iniData(firstAudioData);
-//
-//        } else {
-//            Double[] gccAudioData = GCC.gcc(firstAudioData, cutAudioData);
-//           myAudioData.iniData(gccAudioData);
-//        }
-//        myAudioData.saveThrows();
-//        handler.post(audioRunnable);
-//    }
-
-
 
     private double train(int level){
         List<KnockData> allDatas = DataSupport.findAll(KnockData.class);
@@ -493,12 +435,11 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         double threshold = knnAlgorithm.getThreshold();
         return threshold;
     }
+
     @Override
     public void onPause() {
         sm.unregisterListener(this);
-//        handler.removeCallbacks(audioRunnable);
         handler.removeCallbacks(runnable);
-        //audioRecord.stop();
         super.onPause();
     }
 }

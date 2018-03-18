@@ -1,5 +1,7 @@
 <resources>
-    <string name="app_name">AWTest2</string>
+    <string name="app_name">Demo</string>
+    <string name="msg_sent">Sucessful</string>
+    <string name="key">name</string>
     <!--
     This string is used for square devices and overridden by hello_world in
     values-round/strings.xml for round devices.
@@ -10,4 +12,7 @@
     <string name="title_activity_pin_code_test">PinCodeTestActivity</string>
     <string name="title_activity_single_touch_train">SingleTouchTrainActivity</string>
     <string name="title_activity_stadd">STAddActivity</string>
+    <string name="title_activity_delete">DeleteActivity</string>
+    <string name="title_activity_st_delete">StDeleteActivity</string>
+    <string name="title_activity_st_select_user">StSelectUserActivity</string>
 </resources>

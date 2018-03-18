@@ -91,6 +91,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
     private boolean flag = false;
     private boolean ifStart = false;
     private boolean ifStart2 = false;
+    int range = 11;
     /**
      * []data 队列转数组
      */
@@ -177,14 +178,6 @@ public class TestActivity extends WearableActivity implements SensorEventListene
     };
     private boolean ifsaveAmp = false;
 
-//    class SaveAudioRunnable implements Runnable {
-//        @RequiresApi(api = Build.VERSION_CODES.M)
-//        @Override
-//        public void run() {
-//            getNewDis2();
-//        }
-//    }
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -198,8 +191,6 @@ public class TestActivity extends WearableActivity implements SensorEventListene
     public void iniView() {
         tickView = (TickView)findViewById(R.id.tick_view_test);
         fingerImage = (ImageView)findViewById(R.id.finger_image);
-        //mVibrator = (Vibrator) getApplication().getSystemService(Service.VIBRATOR_SERVICE);
-
         //慢慢消失动画
         disappearAnimation = new AlphaAnimation(1, 0);
         disappearAnimation.setDuration(500);
@@ -221,19 +212,22 @@ public class TestActivity extends WearableActivity implements SensorEventListene
         btn = (Button) findViewById(R.id.test_btn);
         mTextViewCount = (TextView) findViewById(R.id.test_text_count);
         //初始化第一个来对齐
-        Double[] firstData = DataSupport.findFirst(KnockData.class).getArray();
-        System.arraycopy(firstData,0,firstKnockx,0,ampLength);
-        System.arraycopy(firstData,ampLength,firstKnocky,0,ampLength);
-        System.arraycopy(firstData,ampLength*2,firstKnockz,0,ampLength);
-//        firstAudioData = DataSupport.findFirst(MyAudioData.class).getAudioArray();
+        int num = DataSupport.count(KnockData.class);
+        if(num==0){
+            Toast.makeText(this, "blank database", Toast.LENGTH_SHORT).show();
+            finish();
+        }else{
+            Double[] firstData = DataSupport.findFirst(KnockData.class).getArray();
+            System.arraycopy(firstData,0,firstKnockx,0,ampLength);
+            System.arraycopy(firstData,ampLength,firstKnocky,0,ampLength);
+            System.arraycopy(firstData,ampLength*2,firstKnockz,0,ampLength);
+        }
 
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 //停止
                 if (flag) {
-//                    handler.removeCallbacks(audioRunnable);
-//                    audioRecord.stop();
                     ifStart = false;
                     flag = false;
                     count = 0;
@@ -242,9 +236,6 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                     mTextViewCount.setText("0");
                     btn.setText("START");
                 } else {
-//                    audioRecord.startRecording();
-//                    handler.postDelayed(audioRunnable, 1);
-
                     fingerImage.setVisibility(View.VISIBLE);
                     handler.postDelayed(runnable, 1000);
                     recLen = 0;
@@ -261,24 +252,32 @@ public class TestActivity extends WearableActivity implements SensorEventListene
         //取阈值
         SharedPreferences p = getApplicationContext().getSharedPreferences("Myprefs",
                 Context.MODE_PRIVATE);
-        threshold = p.getFloat("threshold", threshold);
-        //threshold2 = p.getFloat("threshold2", threshold2);
+        threshold = 0;
         //取出训练数据
-        List<KnockData> allDatas = DataSupport.findAll(KnockData.class);
+        String userName = getIntent().getStringExtra("userName");
+        List<KnockData> allDatas = DataSupport.where("userName = ?",userName).find(KnockData.class);
         trainData = new Double[allDatas.size()][finalLength];
         int r = 0;
         for (KnockData row : allDatas) {
             trainData[r] = row.getArray();
             r++;
         }
-        //取出声音训练数据
-//        List<MyAudioData> allAudioDatas = DataSupport.findAll(MyAudioData.class);
-//        audioTrainData = new Double[allAudioDatas.size()][finalAudioLength];
-//        int i = 0;
-//        for (MyAudioData row : allAudioDatas) {
-//            audioTrainData[i] = row.getAudioArray();
-//            i++;
-//        }
+
+        // get it
+        int value = -1;
+        value = p.getInt("value",value);
+        //没有初始化
+        if(value==-1){
+            value=range/2;
+        }
+        p.edit().putFloat("threshold", (float) threshold).apply();
+
+        KNNAlgorithm knnAlgorithm = new KNNAlgorithm(trainData);
+
+        double threshold = knnAlgorithm.getThreshold();
+        Log.d(TAG, "onClick: threshold" + threshold);
+
+
     }
 
     @Override
@@ -470,6 +469,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
 //
 //        handler.post(audioRunnable);
 //    }
+
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {

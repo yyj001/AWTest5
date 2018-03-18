@@ -5,6 +5,7 @@
 
     <uses-feature android:name="android.hardware.type.watch" />
 
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- 录音权限 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -18,7 +19,7 @@
     <application
         android:name="org.litepal.LitePalApplication"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/watch"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault"
@@ -53,17 +54,15 @@
             android:label="@string/title_activity_pin_code_test" />
         <activity
             android:name=".singleTouch.SingleTouchTrainActivity"
-            android:label="@string/title_activity_single_touch_train">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity android:name=".singleTouch.STSettingActivity" />
+            android:label="@string/title_activity_single_touch_train"></activity>
+        <activity android:name=".singleTouch.STSettingActivity"></activity>
         <activity
-            android:name=".singleTouch.STAddActivity"
-            android:label="@string/title_activity_stadd">
+            android:name=".singleTouch.StDeleteActivity"
+            android:label="@string/title_activity_st_delete" />
+        <activity android:name="android.support.wearable.activity.ConfirmationActivity" />
+        <activity
+            android:name=".singleTouch.StSelectUserActivity"
+            android:label="@string/title_activity_st_select_user">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

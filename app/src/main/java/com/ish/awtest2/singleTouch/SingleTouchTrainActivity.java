@@ -1,9 +1,13 @@
 package com.ish.awtest2.singleTouch;
 
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.support.wearable.activity.ConfirmationActivity;
 import android.support.wearable.activity.WearableActivity;
+import android.support.wearable.view.AcceptDenyDialog;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -53,6 +57,12 @@ public class SingleTouchTrainActivity extends WearableActivity implements Discre
             @Override
             public void onClick(View v) {
                 p.edit().putInt("value", value).apply();
+                Intent intent = new Intent(SingleTouchTrainActivity.this, ConfirmationActivity.class);
+                intent.putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE,
+                        ConfirmationActivity.SUCCESS_ANIMATION);
+                intent.putExtra(ConfirmationActivity.EXTRA_MESSAGE,
+                        getString(R.string.msg_sent));
+                startActivity(intent);
             }
         });
     }
