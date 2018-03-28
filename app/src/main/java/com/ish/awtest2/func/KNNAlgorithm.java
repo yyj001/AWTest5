@@ -12,13 +12,22 @@ public class KNNAlgorithm {
     private Double threshold = null;
     private double[] thresholds = null;
     private Double[][] data = null;
-
+    private Double[] weight = null;
     /**
      * data 格式说明: data[i] 表示第 i 个样本
      * @param data 用户样本
      */
     public KNNAlgorithm(Double[][] data) {
-        this.data = data;
+        Log.d("!", "KNNAlgorithm: " + data[0][0]);
+        this.weight = Trainer.calPower(data);
+        this.data = new Double[data.length][];
+        for(int i =0 ;i<data.length;i++){
+            this.data[i] = std(data[i],weight);
+        }
+        Log.d("!", "KNNAlgorithm: " + weight[0]);
+        Log.d("!", "KNNAlgorithm: " + this.data[0][0]);
+
+//        this.data = data;
         // 未传入阈值 说明样本未被训练过，需先进行训练以计算阈值
         train();
     }
@@ -45,6 +54,24 @@ public class KNNAlgorithm {
         return thresholds;
     }
 
+
+    /**
+     *
+     * @param level
+     * @param range
+     */
+    public void setThreshold(int level,int range) {
+        if(level >= range/2){
+            int move= level - range/2;
+            int index = thresholds.length - (int) Math.ceil(thresholds.length * 0.1) - move;
+            this.threshold = thresholds[index];
+        }else{
+            int prePos = range/2 - level;
+            int index = thresholds.length - (int) Math.ceil(thresholds.length * 0.1);
+            this.threshold = thresholds[index] + (thresholds[index] - thresholds[index - prePos]);
+        }
+    }
+
     /**
      * 自行设置阈值
      * @param threshold 新的阈值
@@ -59,7 +86,9 @@ public class KNNAlgorithm {
      * @return 本人返回 True (距离 <= 阈值) 非本人返回 False
      */
     public boolean isMe(Double[] testData) {
-        return nearestDis(data, testData) <= threshold;
+        Double[] newTestData = std(testData,weight);
+        Log.d("a", "isMe: " + nearestDis(data, newTestData) + "  t:"+threshold);
+        return nearestDis(data, newTestData) <= threshold;
     }
 
     /**
@@ -70,7 +99,7 @@ public class KNNAlgorithm {
      */
     private void train() {
         // 打乱样本
-        shuffle(this.data);
+        //shuffle(this.data);
         // 计算会用到的值
         int sampleSize = data.length;
         int trainSize = (int) Math.floor(sampleSize * 0.6);
@@ -130,6 +159,20 @@ public class KNNAlgorithm {
             }
         }
         return minDis;
+    }
+
+    /**
+     * std
+     * @param rowData
+     * @param weight
+     * @return
+     */
+    private Double[] std(Double[] rowData, Double[] weight){
+        Double[] result = new Double[rowData.length];
+        for(int i=0;i<rowData.length;i++){
+            result[i] = rowData[i] * weight[i];
+        }
+        return result;
     }
 
 }

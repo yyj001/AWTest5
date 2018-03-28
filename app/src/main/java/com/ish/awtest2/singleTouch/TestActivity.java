@@ -91,7 +91,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
     private boolean flag = false;
     private boolean ifStart = false;
     private boolean ifStart2 = false;
-    int range = 11;
+    private int range = 10;
     /**
      * []data 队列转数组
      */
@@ -111,15 +111,15 @@ public class TestActivity extends WearableActivity implements SensorEventListene
      */
     private int ampLength = 32;
     private int finalLength = 144;
-//    private int audioLength = 1024;
+    //    private int audioLength = 1024;
 //    private int finalAudioLength = 1024;
     private Double[] firstKnockx = new Double[ampLength];
     private Double[] firstKnocky = new Double[ampLength];
     private Double[] firstKnockz = new Double[ampLength];
     private Double[] finalData = new Double[finalLength];
-//    private Double[] firstAudioData = new Double[audioLength];
+    //    private Double[] firstAudioData = new Double[audioLength];
 //    private Double[] finalAudioData = new Double[finalAudioLength];
-
+    private KNNAlgorithm knnAlgorithm;
     /**
      * 训练距离
      */
@@ -136,7 +136,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
     private TickView tickView;
     private ImageView fingerImage;
 
-    private double newDis1,newDis2;
+    private double newDis1, newDis2;
     //动画
     Animation disappearAnimation;
 
@@ -145,9 +145,9 @@ public class TestActivity extends WearableActivity implements SensorEventListene
         @Override
         public void run() {
             recLen++;
-            if(recLen==1) {
+            if (recLen == 1) {
                 mTextViewCount.setText("READY");
-            }else if(recLen>2){
+            } else if (recLen > 2) {
                 mTextViewCount.setText("TAP YOUR HAND");
             }
             handler.postDelayed(this, 2000);
@@ -188,18 +188,25 @@ public class TestActivity extends WearableActivity implements SensorEventListene
         SQLiteDatabase db = Connector.getDatabase();
     }
 
+    /**
+     * 初始化数据
+     */
     public void iniView() {
-        tickView = (TickView)findViewById(R.id.tick_view_test);
-        fingerImage = (ImageView)findViewById(R.id.finger_image);
+        tickView = (TickView) findViewById(R.id.tick_view_test);
+        fingerImage = (ImageView) findViewById(R.id.finger_image);
         //慢慢消失动画
         disappearAnimation = new AlphaAnimation(1, 0);
         disappearAnimation.setDuration(500);
 
         disappearAnimation.setAnimationListener(new Animation.AnimationListener() {
             @Override
-            public void onAnimationStart(Animation animation) {}
+            public void onAnimationStart(Animation animation) {
+            }
+
             @Override
-            public void onAnimationRepeat(Animation animation) {}
+            public void onAnimationRepeat(Animation animation) {
+            }
+
             @Override
             public void onAnimationEnd(Animation animation) {
                 //tickView.setVisibility(View.GONE);
@@ -211,17 +218,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
 
         btn = (Button) findViewById(R.id.test_btn);
         mTextViewCount = (TextView) findViewById(R.id.test_text_count);
-        //初始化第一个来对齐
-        int num = DataSupport.count(KnockData.class);
-        if(num==0){
-            Toast.makeText(this, "blank database", Toast.LENGTH_SHORT).show();
-            finish();
-        }else{
-            Double[] firstData = DataSupport.findFirst(KnockData.class).getArray();
-            System.arraycopy(firstData,0,firstKnockx,0,ampLength);
-            System.arraycopy(firstData,ampLength,firstKnocky,0,ampLength);
-            System.arraycopy(firstData,ampLength*2,firstKnockz,0,ampLength);
-        }
+
 
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -255,28 +252,34 @@ public class TestActivity extends WearableActivity implements SensorEventListene
         threshold = 0;
         //取出训练数据
         String userName = getIntent().getStringExtra("userName");
-        List<KnockData> allDatas = DataSupport.where("userName = ?",userName).find(KnockData.class);
+        List<KnockData> allDatas = DataSupport.where("userName = ?", userName).find(KnockData.class);
         trainData = new Double[allDatas.size()][finalLength];
         int r = 0;
         for (KnockData row : allDatas) {
             trainData[r] = row.getArray();
             r++;
         }
+        //初始化第一个来对齐
+        System.arraycopy(trainData[0], 0, firstKnockx, 0, ampLength);
+        System.arraycopy(trainData[0], ampLength, firstKnocky, 0, ampLength);
+        System.arraycopy(trainData[0], ampLength * 2, firstKnockz, 0, ampLength);
 
         // get it
         int value = -1;
-        value = p.getInt("value",value);
+        value = p.getInt("value", value);
+        range = p.getInt("range", range);
         //没有初始化
-        if(value==-1){
-            value=range/2;
+        if (value == -1) {
+            value = range / 2;
         }
-        p.edit().putFloat("threshold", (float) threshold).apply();
+        //p.edit().putFloat("threshold", (float) threshold).apply();
 
-        KNNAlgorithm knnAlgorithm = new KNNAlgorithm(trainData);
+        knnAlgorithm = new KNNAlgorithm(trainData);
+        knnAlgorithm.setThreshold(value, range);
+
 
         double threshold = knnAlgorithm.getThreshold();
         Log.d(TAG, "onClick: threshold" + threshold);
-
 
     }
 
@@ -302,7 +305,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
             //等待敲击
             else {
                 //遇到敲击
-                if (zChange > deviation && !ifStart2&&count>210) {
+                if (zChange > deviation && !ifStart2 && count > 210) {
                     //SaveAudioRunnable myThread = new SaveAudioRunnable();
                     //new Thread(myThread).start();
                     ifStart2 = true;
@@ -321,26 +324,26 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                     datay = yQueue.toArray(new Double[limit]);
                     dataz = zQueue.toArray(new Double[limit]);
 
-                    datax = IIRFilter.highpass(datax,IIRFilter.TYPE_AMPITUDE);
-                    datax = IIRFilter.lowpass(datax,IIRFilter.TYPE_AMPITUDE);
+                    datax = IIRFilter.highpass(datax, IIRFilter.TYPE_AMPITUDE);
+                    datax = IIRFilter.lowpass(datax, IIRFilter.TYPE_AMPITUDE);
 
-                    datay = IIRFilter.highpass(datay,IIRFilter.TYPE_AMPITUDE);
-                    datay = IIRFilter.lowpass(datay,IIRFilter.TYPE_AMPITUDE);
+                    datay = IIRFilter.highpass(datay, IIRFilter.TYPE_AMPITUDE);
+                    datay = IIRFilter.lowpass(datay, IIRFilter.TYPE_AMPITUDE);
 
-                    dataz = IIRFilter.highpass(dataz,IIRFilter.TYPE_AMPITUDE);
-                    dataz = IIRFilter.lowpass(dataz,IIRFilter.TYPE_AMPITUDE);
+                    dataz = IIRFilter.highpass(dataz, IIRFilter.TYPE_AMPITUDE);
+                    dataz = IIRFilter.lowpass(dataz, IIRFilter.TYPE_AMPITUDE);
 
-                    Double[] cutDatax = Cut.cutMoutain2(datax, 84, 35, 60,1);
-                    Double[] cutDatay = Cut.cutMoutain2(datay, 90, 35, 60,2);
-                    Double[] cutDataz = Cut.cutMoutain2(dataz, 84, 35, 60,3);
+                    Double[] cutDatax = Cut.cutMoutain2(datax, 84, 35, 60, 1);
+                    Double[] cutDatay = Cut.cutMoutain2(datay, 130, 35, 60, 2);
+                    Double[] cutDataz = Cut.cutMoutain2(dataz, 84, 35, 60, 3);
 
                     boolean ifmove = false;
                     //判断是否为手臂晃动
-                    if(cutDatax[0]==0.0 || cutDatay[0]==0.0 || cutDataz[0]==0.0){
+                    if (cutDatax[0] == 0.0 || cutDatay[0] == 0.0 || cutDataz[0] == 0.0) {
                         ifmove = true;
                     }
 
-                    if(!ifmove){
+                    if (!ifmove) {
                         Double[] gccDatax = GCC.gcc(firstKnockx, cutDatax);
                         Double[] gccDatay = GCC.gcc(firstKnocky, cutDatay);
                         Double[] gccDataz = GCC.gcc(firstKnockz, cutDataz);
@@ -351,10 +354,10 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                         Double[] fftDataz = FFT.getHalfFFTData(gccDataz);
                         System.arraycopy(gccDatax, 0, finalData, 0, ampLength);
                         System.arraycopy(gccDatay, 0, finalData, ampLength, ampLength);
-                        System.arraycopy(gccDataz, 0, finalData, ampLength*2, ampLength);
-                        System.arraycopy(fftDatax, 0, finalData, ampLength*3, ampLength/2);
-                        System.arraycopy(fftDatay, 0, finalData, ampLength*3+ampLength/2, ampLength/2);
-                        System.arraycopy(fftDataz, 0, finalData, ampLength*4, ampLength/2);
+                        System.arraycopy(gccDataz, 0, finalData, ampLength * 2, ampLength);
+                        System.arraycopy(fftDatax, 0, finalData, ampLength * 3, ampLength / 2);
+                        System.arraycopy(fftDatay, 0, finalData, ampLength * 3 + ampLength / 2, ampLength / 2);
+                        System.arraycopy(fftDataz, 0, finalData, ampLength * 4, ampLength / 2);
                         for (int i = 0; i < finalData.length; i++) {
                             s = s + "," + finalData[i];
                         }
@@ -362,12 +365,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                         s = "";
                         //将新的敲击数据加入对比
                         //double newDis = Trainer.getNewDis(trainData, finalData);
-                        KNNAlgorithm knnAlgorithm = new KNNAlgorithm(trainData);
                         boolean isme = knnAlgorithm.isMe(finalData);
-
-                        //Log.d(TAG, "onSensorChanged: " + newDis);
-
-
                         //隐藏手指，显示动画
                         fingerImage.setVisibility(GONE);
                         tickView.setAlpha(1);
@@ -383,7 +381,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                                 public void run() {
                                     tickView.startAnimation(disappearAnimation);
                                 }
-                            },1500);
+                            }, 1500);
                         } else {
                             tickView.setType(TickView.TYPE_ERROR);
                             tickView.setChecked(true);
@@ -394,7 +392,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                                 public void run() {
                                     tickView.startAnimation(disappearAnimation);
                                 }
-                            },1500);
+                            }, 1500);
                         }
                     }
                     flag = true;

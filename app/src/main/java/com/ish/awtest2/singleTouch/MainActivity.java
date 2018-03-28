@@ -239,12 +239,14 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 //                            Log.d(TAG, "after filter,"+s);
 //                            s = "";
                             Double[] cutDatax = Cut.cutMoutain2(datax, 64, 35, 40);
-                            Double[] cutDatay = Cut.cutMoutain2(datay, 70, 35, 40);
+                            //Double[] cutDatay = Cut.cutMoutain2(datay, 70, 35, 40);
+                            Double[] cutDatay = Cut.cutMoutain2(datay, 150, 40, 120);
                             Double[] cutDataz = Cut.cutMoutain2(dataz, 64, 35, 40);
                             //如果是第一个敲击，记录下来，后面的敲击gcc以它对齐
                             if (knockCount == 1) {
                                 System.arraycopy(cutDatax, 10, firstKnockx, 0, ampLength);
-                                System.arraycopy(cutDatay, 18, firstKnocky, 0, ampLength);
+                                //System.arraycopy(cutDatay, 18, firstKnocky, 0, ampLength);
+                                System.arraycopy(cutDatay, 55, firstKnocky, 0, ampLength);
                                 System.arraycopy(cutDataz, 18, firstKnockz, 0, ampLength);
                                 Double[] fftDatax = FFT.getHalfFFTData(firstKnockx);
                                 Double[] fftDatay = FFT.getHalfFFTData(firstKnocky);

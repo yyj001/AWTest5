@@ -24,7 +24,7 @@ public class SingleTouchTrainActivity extends WearableActivity implements Discre
     private TextView mTextView;
     private DiscreteSeekBar seekBar;
     private int value = -1;
-    private int range = -1;
+    private int range = 10;
     private SharedPreferences p = null;
     private Button trainBtn;
 
@@ -43,9 +43,11 @@ public class SingleTouchTrainActivity extends WearableActivity implements Discre
         //取出设置
         p = getApplicationContext().getSharedPreferences("Myprefs",
                 Context.MODE_PRIVATE);
-        range = p.getInt("range", range);
+        range = 10;
+
         seekBar.setMax(range);
         seekBar.setMin(0);
+        p.edit().putInt("range", range).apply();
         value = p.getInt("value", value);
         //初始设置
         if(value==-1){
