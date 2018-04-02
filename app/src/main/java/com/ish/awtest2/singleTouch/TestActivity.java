@@ -38,6 +38,7 @@ import com.ish.awtest2.func.GCC;
 import com.ish.awtest2.func.IIRFilter;
 import com.ish.awtest2.func.KNNAlgorithm;
 import com.ish.awtest2.func.LimitQueue;
+import com.ish.awtest2.func.NKNNAlgorithm;
 import com.ish.awtest2.func.Trainer;
 import com.ish.awtest2.mview.TickView;
 
@@ -45,6 +46,13 @@ import org.litepal.crud.DataSupport;
 import org.litepal.tablemanager.Connector;
 
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static android.media.AudioRecord.READ_NON_BLOCKING;
 import static android.view.View.GONE;
@@ -111,32 +119,28 @@ public class TestActivity extends WearableActivity implements SensorEventListene
      */
     private int ampLength = 32;
     private int finalLength = 144;
-    //    private int audioLength = 1024;
-//    private int finalAudioLength = 1024;
+
     private Double[] firstKnockx = new Double[ampLength];
     private Double[] firstKnocky = new Double[ampLength];
     private Double[] firstKnockz = new Double[ampLength];
     private Double[] finalData = new Double[finalLength];
-    //    private Double[] firstAudioData = new Double[audioLength];
-//    private Double[] finalAudioData = new Double[finalAudioLength];
-    private KNNAlgorithm knnAlgorithm;
+
+    private NKNNAlgorithm nknnAlgorithm;
     /**
-     * 训练距离
-     */
-    float threshold = 0;
-    float threshold2 = 0;
-    /**
-     * 训练数据
+     * 训练数据n
      */
     Double[][] trainData;
-    Double[][] audioTrainData;
+    /**
+     * 是否已经初始化数据
+     */
+    boolean ifIniData = false;
+
     private static final String TAG = "sensorTest";
     private String s = "";
     //
     private TickView tickView;
     private ImageView fingerImage;
 
-    private double newDis1, newDis2;
     //动画
     Animation disappearAnimation;
 
@@ -167,15 +171,15 @@ public class TestActivity extends WearableActivity implements SensorEventListene
             frequency, channelConfiguration, audioEncoding, bufferSize);
     private int bufferResultLength;
     //如果不每隔一秒就把音频保存一下就会有问题
-    private Runnable audioRunnable = new Runnable() {
-        @RequiresApi(api = Build.VERSION_CODES.M)
-        @Override
-        public void run() {
-            bufferResultLength = audioRecord.read(rawAudioData, 0, bufferSize, READ_NON_BLOCKING);
-            Log.d(TAG, "run: +bufferlength " + bufferResultLength);
-            handler.postDelayed(this, 1000);
-        }
-    };
+//    private Runnable audioRunnable = new Runnable() {
+//        @RequiresApi(api = Build.VERSION_CODES.M)
+//        @Override
+//        public void run() {
+//            bufferResultLength = audioRecord.read(rawAudioData, 0, bufferSize, READ_NON_BLOCKING);
+//            Log.d(TAG, "run: +bufferlength " + bufferResultLength);
+//            handler.postDelayed(this, 1000);
+//        }
+//    };
     private boolean ifsaveAmp = false;
 
 
@@ -189,15 +193,17 @@ public class TestActivity extends WearableActivity implements SensorEventListene
     }
 
     /**
-     * 初始化数据
+     * 初始化view
      */
     public void iniView() {
         tickView = (TickView) findViewById(R.id.tick_view_test);
         fingerImage = (ImageView) findViewById(R.id.finger_image);
+        btn = (Button) findViewById(R.id.test_btn);
+        mTextViewCount = (TextView) findViewById(R.id.test_text_count);
+
         //慢慢消失动画
         disappearAnimation = new AlphaAnimation(1, 0);
         disappearAnimation.setDuration(500);
-
         disappearAnimation.setAnimationListener(new Animation.AnimationListener() {
             @Override
             public void onAnimationStart(Animation animation) {
@@ -216,10 +222,6 @@ public class TestActivity extends WearableActivity implements SensorEventListene
             }
         });
 
-        btn = (Button) findViewById(R.id.test_btn);
-        mTextViewCount = (TextView) findViewById(R.id.test_text_count);
-
-
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -233,54 +235,23 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                     mTextViewCount.setText("0");
                     btn.setText("START");
                 } else {
-                    fingerImage.setVisibility(View.VISIBLE);
-                    handler.postDelayed(runnable, 1000);
-                    recLen = 0;
-                    flag = true;
-                    btn.setText("STOP");
-                    btn.setAlpha(0);
-                    tickView.setType(TickView.TYPE_ERROR);
-                    tickView.setChecked(true);
-                    btn.setClickable(false);
+                    //已经初始化数据
+                    if (ifIniData) {
+                        fingerImage.setVisibility(View.VISIBLE);
+                        handler.postDelayed(runnable, 1000);
+                        recLen = 0;
+                        flag = true;
+                        btn.setText("STOP");
+                        btn.setAlpha(0);
+                        tickView.setType(TickView.TYPE_ERROR);
+                        tickView.setChecked(true);
+                        btn.setClickable(false);
+                    } else {
+                        Toast.makeText(TestActivity.this, "waitting...", Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
         });
-
-        //取阈值
-        SharedPreferences p = getApplicationContext().getSharedPreferences("Myprefs",
-                Context.MODE_PRIVATE);
-        threshold = 0;
-        //取出训练数据
-        String userName = getIntent().getStringExtra("userName");
-        List<KnockData> allDatas = DataSupport.where("userName = ?", userName).find(KnockData.class);
-        trainData = new Double[allDatas.size()][finalLength];
-        int r = 0;
-        for (KnockData row : allDatas) {
-            trainData[r] = row.getArray();
-            r++;
-        }
-        //初始化第一个来对齐
-        System.arraycopy(trainData[0], 0, firstKnockx, 0, ampLength);
-        System.arraycopy(trainData[0], ampLength, firstKnocky, 0, ampLength);
-        System.arraycopy(trainData[0], ampLength * 2, firstKnockz, 0, ampLength);
-
-        // get it
-        int value = -1;
-        value = p.getInt("value", value);
-        range = p.getInt("range", range);
-        //没有初始化
-        if (value == -1) {
-            value = range / 2;
-        }
-        //p.edit().putFloat("threshold", (float) threshold).apply();
-
-        knnAlgorithm = new KNNAlgorithm(trainData);
-        knnAlgorithm.setThreshold(value, range);
-
-
-        double threshold = knnAlgorithm.getThreshold();
-        Log.d(TAG, "onClick: threshold" + threshold);
-
     }
 
     @Override
@@ -295,7 +266,6 @@ public class TestActivity extends WearableActivity implements SensorEventListene
             yQueue.offer(y);
             zQueue.offer(z);
             count++;
-            //mTextView.setText(z + "");
             //判断是否存了200个点
             if (!ifStart) {
                 if (count == limit) {
@@ -306,8 +276,6 @@ public class TestActivity extends WearableActivity implements SensorEventListene
             else {
                 //遇到敲击
                 if (zChange > deviation && !ifStart2 && count > 210) {
-                    //SaveAudioRunnable myThread = new SaveAudioRunnable();
-                    //new Thread(myThread).start();
                     ifStart2 = true;
                     count = 0;
                 }
@@ -333,17 +301,11 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                     dataz = IIRFilter.highpass(dataz, IIRFilter.TYPE_AMPITUDE);
                     dataz = IIRFilter.lowpass(dataz, IIRFilter.TYPE_AMPITUDE);
 
-                    Double[] cutDatax = Cut.cutMoutain2(datax, 84, 35, 60, 1);
-                    Double[] cutDatay = Cut.cutMoutain2(datay, 130, 35, 60, 2);
-                    Double[] cutDataz = Cut.cutMoutain2(dataz, 84, 35, 60, 3);
+                    if (!judgeshakeHands(datax) && !judgeshakeHands(datay) && !judgeshakeHands(dataz)) {
+                        Double[] cutDatax = Cut.cutMoutain2(datax, 84, 35, 60, 1);
+                        Double[] cutDatay = Cut.cutMoutain2(datay, 130, 35, 60, 2);
+                        Double[] cutDataz = Cut.cutMoutain2(dataz, 84, 35, 60, 3);
 
-                    boolean ifmove = false;
-                    //判断是否为手臂晃动
-                    if (cutDatax[0] == 0.0 || cutDatay[0] == 0.0 || cutDataz[0] == 0.0) {
-                        ifmove = true;
-                    }
-
-                    if (!ifmove) {
                         Double[] gccDatax = GCC.gcc(firstKnockx, cutDatax);
                         Double[] gccDatay = GCC.gcc(firstKnocky, cutDatay);
                         Double[] gccDataz = GCC.gcc(firstKnockz, cutDataz);
@@ -358,14 +320,14 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                         System.arraycopy(fftDatax, 0, finalData, ampLength * 3, ampLength / 2);
                         System.arraycopy(fftDatay, 0, finalData, ampLength * 3 + ampLength / 2, ampLength / 2);
                         System.arraycopy(fftDataz, 0, finalData, ampLength * 4, ampLength / 2);
-                        for (int i = 0; i < finalData.length; i++) {
-                            s = s + "," + finalData[i];
-                        }
-                        Log.d(TAG, "onSensorChanged: finalData" + s);
-                        s = "";
+//                        for (int i = 0; i < finalData.length; i++) {
+//                            s = s + "," + finalData[i];
+//                        }
+//                        Log.d(TAG, "onSensorChanged: finalData" + s);
+//                        s = "";
                         //将新的敲击数据加入对比
                         //double newDis = Trainer.getNewDis(trainData, finalData);
-                        boolean isme = knnAlgorithm.isMe(finalData);
+                        boolean isme = nknnAlgorithm.isMe(finalData);
                         //隐藏手指，显示动画
                         fingerImage.setVisibility(GONE);
                         tickView.setAlpha(1);
@@ -402,78 +364,71 @@ public class TestActivity extends WearableActivity implements SensorEventListene
         }
     }
 
-//    private void getNewDis2(){
-//        handler.removeCallbacks(audioRunnable);
-//        bufferResultLength = audioRecord.read(rawAudioData, 0, bufferSize);
-//        Log.d(TAG, "onClick: " + bufferResultLength);
-//        Double[] filterAudioData = new Double[bufferResultLength];
-//        for (int i = 0; i < bufferResultLength; i++) {
-//            filterAudioData[i] = Double.valueOf(rawAudioData[i]);
-//        }
-//        filterAudioData = Filter.highpass(filterAudioData);
-//        filterAudioData = Filter.lowpass(filterAudioData);
-//        Double[] cutAudioData = Cut.cutMoutain(filterAudioData, 1500, 2000, 700, 4, 140);
-//        finalAudioData = GCC.gcc(firstAudioData, cutAudioData);
-//        int temp = finalAudioLength / 8;
-//        for (int i = 0; i < 8; i++) {
-//            for (int j = 0; j < temp; j++) {
-//                s = s + "," + finalAudioData[j + temp * i];
-//            }
-//            Log.d(TAG, "radio: " + s);
-//            s = "";
-//        }
-//        //waitting
-//        while(!ifsaveAmp){
-//            Log.d(TAG, "waitting...........");
-//        }
-//        ifsaveAmp = false;
-//         newDis1 = Trainer.getNewDis(trainData, finalData);
-//         newDis2 = Trainer.getNewDis(audioTrainData, finalData);
-//        Log.d(TAG, "dis1: " + newDis1);
-//        Log.d(TAG, "dis2: " + newDis2);
-//        //隐藏手指，显示动画
-//        runOnUiThread(new Runnable() {
-//            @Override
-//            public void run() {
-//                fingerImage.setVisibility(GONE);
-//                tickView.setAlpha(1);
-//                //失败
-//                if (threshold >= newDis1 && threshold2 >= newDis2) {
-//                    tickView.setType(TickView.TYPE_SUCCESS);
-//                    tickView.setChecked(true);
-//                    mTextViewCount.setText("SUCESSED");
-//                    recLen = 2;
-//                    handler.postDelayed(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            tickView.startAnimation(disappearAnimation);
-//                        }
-//                    }, 1500);
-//                } else {
-//                    tickView.setType(TickView.TYPE_ERROR);
-//                    tickView.setChecked(true);
-//                    mTextViewCount.setText("TRY AGAIN");
-//                    recLen = 2;
-//                    handler.postDelayed(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            tickView.startAnimation(disappearAnimation);
-//                        }
-//                    }, 1500);
-//                }
-//
-//            }
-//        });
-//
-//        handler.post(audioRunnable);
-//    }
-
-
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
     }
 
+    /**
+     * 创建线程池，开启新的线程来初始化数据，避免页面打开卡顿延迟。
+     */
+    @Override
+    protected void onStart() {
+        super.onStart();
+        int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
+        int KEEP_ALIVE_TIME = 1;
+        TimeUnit KEEP_ALIVE_TIME_UNIT = TimeUnit.SECONDS;
+        BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<Runnable>();
+        ExecutorService executorService = new ThreadPoolExecutor(NUMBER_OF_CORES,
+                NUMBER_OF_CORES * 2,
+                KEEP_ALIVE_TIME,
+                KEEP_ALIVE_TIME_UNIT,
+                taskQueue);
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                getTrainData();
+            }
+        });
+    }
+
+    /**
+     * 初始化数据，训练数据
+     */
+    private void getTrainData() {
+        //取出训练数据
+        String userName = getIntent().getStringExtra("userName");
+        List<KnockData> allDatas = DataSupport.where("userName = ?", userName).find(KnockData.class);
+        trainData = new Double[allDatas.size()][finalLength];
+        int r = 0;
+        for (KnockData row : allDatas) {
+            trainData[r] = row.getArray();
+            r++;
+        }
+        //初始化第一个来对齐
+        System.arraycopy(trainData[0], 0, firstKnockx, 0, ampLength);
+        System.arraycopy(trainData[0], ampLength, firstKnocky, 0, ampLength);
+        System.arraycopy(trainData[0], ampLength * 2, firstKnockz, 0, ampLength);
+
+        //
+        SharedPreferences p = getApplicationContext().getSharedPreferences("Myprefs",
+                Context.MODE_PRIVATE);
+        int range = 10;
+        int value = 5;
+        value = p.getInt("value", value);
+        range = p.getInt("range", range);
+
+        nknnAlgorithm = new NKNNAlgorithm(trainData);
+        if (nknnAlgorithm.hasOneSampleClass()) {
+        } else {
+        }
+        nknnAlgorithm.generateKNNAlgorithm();
+        ifIniData = true;
+    }
+
+    /**
+     * 注册传感器监听器
+     */
     @Override
     protected void onResume() {
         super.onResume();
@@ -483,12 +438,32 @@ public class TestActivity extends WearableActivity implements SensorEventListene
 
         sm.registerListener(this, sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
                 , 10000);
-
     }
 
+    /**
+     * 取消传感器监听器
+     */
     @Override
     public void onPause() {
         sm.unregisterListener(this);
         super.onPause();
+    }
+
+    private boolean judgeshakeHands(Double[] array) {
+        Double d = 0.22;
+        boolean result = false;
+        for (int i = 40; i < 80; ++i) {
+            //有一个值大于阈值说明就是手晃动
+            if (array[i] > d) {
+                result = true;
+            }
+        }
+        for (int i = 140; i < 170; ++i) {
+            //有一个值大于阈值说明就是手晃动
+            if (array[i] > d) {
+                result = true;
+            }
+        }
+        return result;
     }
 }

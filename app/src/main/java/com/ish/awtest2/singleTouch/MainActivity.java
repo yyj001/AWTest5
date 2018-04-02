@@ -41,6 +41,11 @@ import org.litepal.crud.DataSupport;
 import org.litepal.tablemanager.Connector;
 
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import static android.media.AudioRecord.READ_NON_BLOCKING;
 
@@ -52,9 +57,6 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     private TextView mTextViewCount;
     private EditText editText;
     private Button btn;
-    private Button btn2;
-    private Button btn3;
-    private Button btn4;
     private SharedPreferences p;
     private int range = 10;
     private SensorManager sm;
@@ -110,50 +112,15 @@ public class MainActivity extends WearableActivity implements SensorEventListene
      */
     private int ampLength = 32;
     private int finalLength = 144;
-//    private int audioLength = 1024;
-//    private int finalAudioLength = 1024;
     private Double[] firstKnockx = new Double[ampLength];
     private Double[] firstKnocky = new Double[ampLength];
     private Double[] firstKnockz = new Double[ampLength];
     private Double[] finalData = new Double[finalLength];
-//    private Double[] firstAudioData = new Double[audioLength];
-//    private Double[] finalAudioData = new Double[finalAudioLength];
 
     private static final String TAG = "sensor";
     private String s = "";
-    /**
-     * 音频数据
-     */
-    private boolean ifsaveAudio = false;
-    private int frequency = 11025;
-    private int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
-    private int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
-    private int bufferSize = AudioRecord.getMinBufferSize(frequency, channelConfiguration, audioEncoding) * 20;
-    private short[] rawAudioData = new short[bufferSize];
-    private AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
-            frequency, channelConfiguration, audioEncoding, bufferSize);
-    private int bufferResultLength;
-    //如果不每隔一秒就把音频保存一下就会有问题
-    private Runnable audioRunnable = new Runnable() {
-        @RequiresApi(api = Build.VERSION_CODES.M)
-        @Override
-        public void run() {
-            bufferResultLength = audioRecord.read(rawAudioData, 0, bufferSize, READ_NON_BLOCKING);
-            Log.d(TAG, "run: +bufferlength " + bufferResultLength);
-            handler.postDelayed(this, 1000);
-        }
-    };
+    private ExecutorService executorService;
 
-//    class SaveAudioRunnable implements Runnable {
-//        @RequiresApi(api = Build.VERSION_CODES.M)
-//        @Override
-//        public void run() {
-//            saveRawAudioData();
-//        }
-//    }
-
-
-    //按钮判断开始
 
     Handler handler = new Handler();
     Runnable runnable = new Runnable() {
@@ -176,7 +143,6 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         iniView();
-        SQLiteDatabase db = Connector.getDatabase();
     }
 
 
@@ -203,8 +169,6 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             else {
                 //遇到敲击
                 if (zChange > deviation && !ifStart2) {
-//                    SaveAudioRunnable myThread = new SaveAudioRunnable();
-//                    new Thread(myThread).start();
                     ifStart2 = true;
                     count = 0;
                     knockCount++;
@@ -222,66 +186,76 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                     datax = xQueue.toArray(new Double[limit]);
                     datay = yQueue.toArray(new Double[limit]);
                     dataz = zQueue.toArray(new Double[limit]);
-                    new Thread(new Runnable() {
+
+                    //加入线程池
+                    executorService.execute(new Runnable() {
                         @Override
                         public void run() {
-                            datax = IIRFilter.highpass(datax, IIRFilter.TYPE_AMPITUDE);
-                            datax = IIRFilter.lowpass(datax, IIRFilter.TYPE_AMPITUDE);
+                            synchronized (this) {
+                                datax = IIRFilter.highpass(datax, IIRFilter.TYPE_AMPITUDE);
+                                datax = IIRFilter.lowpass(datax, IIRFilter.TYPE_AMPITUDE);
 
-                            datay = IIRFilter.highpass(datay, IIRFilter.TYPE_AMPITUDE);
-                            datay = IIRFilter.lowpass(datay, IIRFilter.TYPE_AMPITUDE);
+                                datay = IIRFilter.highpass(datay, IIRFilter.TYPE_AMPITUDE);
+                                datay = IIRFilter.lowpass(datay, IIRFilter.TYPE_AMPITUDE);
 
-                            dataz = IIRFilter.highpass(dataz, IIRFilter.TYPE_AMPITUDE);
-                            dataz = IIRFilter.lowpass(dataz, IIRFilter.TYPE_AMPITUDE);
+                                dataz = IIRFilter.highpass(dataz, IIRFilter.TYPE_AMPITUDE);
+                                dataz = IIRFilter.lowpass(dataz, IIRFilter.TYPE_AMPITUDE);
 //                            for(int i=0;i<limit;i++){
 //                                s+=","+data[i];
 //                            }
 //                            Log.d(TAG, "after filter,"+s);
 //                            s = "";
-                            Double[] cutDatax = Cut.cutMoutain2(datax, 64, 35, 40);
-                            //Double[] cutDatay = Cut.cutMoutain2(datay, 70, 35, 40);
-                            Double[] cutDatay = Cut.cutMoutain2(datay, 150, 40, 120);
-                            Double[] cutDataz = Cut.cutMoutain2(dataz, 64, 35, 40);
-                            //如果是第一个敲击，记录下来，后面的敲击gcc以它对齐
-                            if (knockCount == 1) {
-                                System.arraycopy(cutDatax, 10, firstKnockx, 0, ampLength);
-                                //System.arraycopy(cutDatay, 18, firstKnocky, 0, ampLength);
-                                System.arraycopy(cutDatay, 55, firstKnocky, 0, ampLength);
-                                System.arraycopy(cutDataz, 18, firstKnockz, 0, ampLength);
-                                Double[] fftDatax = FFT.getHalfFFTData(firstKnockx);
-                                Double[] fftDatay = FFT.getHalfFFTData(firstKnocky);
-                                Double[] fftDataz = FFT.getHalfFFTData(firstKnockz);
-                                System.arraycopy(firstKnockx, 0, finalData, 0, ampLength);
-                                System.arraycopy(firstKnocky, 0, finalData, ampLength, ampLength);
-                                System.arraycopy(firstKnockz, 0, finalData, ampLength*2, ampLength);
-                                System.arraycopy(fftDatax, 0, finalData, ampLength*3, ampLength/2);
-                                System.arraycopy(fftDatay, 0, finalData, ampLength*3+ampLength/2, ampLength/2);
-                                System.arraycopy(fftDataz, 0, finalData, ampLength*4, ampLength/2);
-                            } else {
-                                Double[] gccDatax = GCC.gcc(firstKnockx, cutDatax);
-                                Double[] gccDatay = GCC.gcc(firstKnocky, cutDatay);
-                                Double[] gccDataz = GCC.gcc(firstKnockz, cutDataz);
+                                Double[] cutDatax = Cut.cutMoutain2(datax, 64, 35, 40);
+                                Double[] cutDatay = Cut.cutMoutain2(datay, 150, 40, 120);
+                                Double[] cutDataz = Cut.cutMoutain2(dataz, 64, 35, 40);
+                                //如果是第一个敲击，记录下来，后面的敲击gcc以它对齐
+                                if (knockCount == 1) {
+                                    System.arraycopy(cutDatax, 10, firstKnockx, 0, ampLength);
+                                    System.arraycopy(cutDatay, 55, firstKnocky, 0, ampLength);
+                                    System.arraycopy(cutDataz, 18, firstKnockz, 0, ampLength);
+                                    Double[] fftDatax = FFT.getHalfFFTData(firstKnockx);
+                                    Double[] fftDatay = FFT.getHalfFFTData(firstKnocky);
+                                    Double[] fftDataz = FFT.getHalfFFTData(firstKnockz);
+                                    System.arraycopy(firstKnockx, 0, finalData, 0, ampLength);
+                                    System.arraycopy(firstKnocky, 0, finalData, ampLength, ampLength);
+                                    System.arraycopy(firstKnockz, 0, finalData, ampLength * 2
+                                            , ampLength);
+                                    System.arraycopy(fftDatax, 0, finalData, ampLength * 3
+                                            , ampLength / 2);
+                                    System.arraycopy(fftDatay, 0, finalData, ampLength * 3 + ampLength / 2
+                                            , ampLength / 2);
+                                    System.arraycopy(fftDataz, 0, finalData, ampLength * 4
+                                            , ampLength / 2);
+                                } else {
+                                    Double[] gccDatax = GCC.gcc(firstKnockx, cutDatax);
+                                    Double[] gccDatay = GCC.gcc(firstKnocky, cutDatay);
+                                    Double[] gccDataz = GCC.gcc(firstKnockz, cutDataz);
 //                                for(int i=0;i<32;i++){
 //                                    s+=","+gccData[i];
 //                                }
 //                                Log.d(TAG, "gcc,"+s);
 //                                s = "";
-                                Double[] fftDatax = FFT.getHalfFFTData(gccDatax);
-                                Double[] fftDatay = FFT.getHalfFFTData(gccDatay);
-                                Double[] fftDataz = FFT.getHalfFFTData(gccDataz);
+                                    Double[] fftDatax = FFT.getHalfFFTData(gccDatax);
+                                    Double[] fftDatay = FFT.getHalfFFTData(gccDatay);
+                                    Double[] fftDataz = FFT.getHalfFFTData(gccDataz);
 
-                                System.arraycopy(gccDatax, 0, finalData, 0, ampLength);
-                                System.arraycopy(gccDatay, 0, finalData, ampLength, ampLength);
-                                System.arraycopy(gccDataz, 0, finalData, ampLength*2, ampLength);
-                                System.arraycopy(fftDatax, 0, finalData, ampLength*3, ampLength/2);
-                                System.arraycopy(fftDatay, 0, finalData, ampLength*3+ampLength/2, ampLength/2);
-                                System.arraycopy(fftDataz, 0, finalData, ampLength*4, ampLength/2);
+                                    System.arraycopy(gccDatax, 0, finalData, 0, ampLength);
+                                    System.arraycopy(gccDatay, 0, finalData, ampLength, ampLength);
+                                    System.arraycopy(gccDataz, 0, finalData, ampLength * 2
+                                            , ampLength);
+                                    System.arraycopy(fftDatax, 0, finalData, ampLength * 3
+                                            , ampLength / 2);
+                                    System.arraycopy(fftDatay, 0, finalData, ampLength * 3 + ampLength / 2
+                                            , ampLength / 2);
+                                    System.arraycopy(fftDataz, 0, finalData, ampLength * 4
+                                            , ampLength / 2);
+                                }
+                                KnockData knockData = new KnockData();
+                                knockData.initData(editText.getText().toString(), finalData);
+                                knockData.saveThrows();
                             }
-                            KnockData knockData = new KnockData();
-                            knockData.initData(editText.getText().toString(),finalData);
-                            knockData.saveThrows();
                         }
-                    }).start();
+                    });
                     flag = true;
                 }
             }
@@ -303,60 +277,21 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         sm.registerListener(this, sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
                 , 10000);
 
-    }
+        //初始化数据
 
-    public void showDatabase() {
-        List<KnockData> allDatas = DataSupport.findAll(KnockData.class);
-        Log.d(TAG, "行数: " + allDatas.size());
-        for (KnockData row : allDatas) {
-            Double[] rowData = row.getArray();
-            String tempStr = "";
-            for (int i = 0; i < rowData.length; i++) {
-                tempStr += "," + rowData[i];
-            }
-            Log.d(TAG, "showDatabase: " + tempStr);
-        }
-    }
 
-    public void showAudioDatabase() {
-        List<MyAudioData> allAudioDatas = DataSupport.findAll(MyAudioData.class);
-        Log.d(TAG, "audio行数: " + allAudioDatas.size());
-        for (MyAudioData row : allAudioDatas) {
-            Double[] rowData = row.getAudioArray();
-            int temp = 1024 / 16;
-            for (int i = 0; i < 16; i++) {
-                for (int j = 0; j < temp; j++) {
-                    s = s + "," + rowData[j + temp * i];
-                }
-                Log.d("audioshow", "showAudioDatabase " + s);
-                s = "";
-            }
-        }
-    }
-
-    private void deleteOneRow() {
-        DataSupport.deleteAll(KnockData.class);
-        DataSupport.deleteAll(MyAudioData.class);
     }
 
     public void iniView() {
         btn = (Button) findViewById(R.id.btn);
-        btn3 = (Button) findViewById(R.id.btn3);
-        btn4 = (Button) findViewById(R.id.btn4);
         mTextView = (TextView) findViewById(R.id.text);
         mTextViewCount = (TextView) findViewById(R.id.text_count);
-        editText = (EditText)findViewById(R.id.st_name_edtxt);
-        p = getApplicationContext().getSharedPreferences("Myprefs",
-                Context.MODE_PRIVATE);
+        editText = (EditText) findViewById(R.id.st_name_edtxt);
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 //停止
                 if (flag) {
-                    //关闭录音
-                    //handler.removeCallbacks(audioRunnable);
-                    //audioRecord.stop();
-
                     ifStart = false;
                     flag = false;
                     count = 0;
@@ -366,76 +301,37 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                     btn.setText("start");
                 } else {
                     //判断是否已经输入名字
-                    if(editText.getText().toString().trim().equals("")){
+                    if (editText.getText().toString().trim().equals("")) {
                         Toast.makeText(MainActivity.this, "input user's name", Toast.LENGTH_SHORT).show();
-                    }else{
-                        //开启录音
-                        //audioRecord.startRecording();
-                        //handler.postDelayed(audioRunnable, 1);
-                        //倒计时
+                    } else {
                         handler.postDelayed(runnable, 200);
                         recLen = -1;
                         flag = true;
                         btn.setText("stop");
-                        knockCount = 0;
+                        //knockCount = 0;
                     }
                 }
             }
         });
+        int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
+        int KEEP_ALIVE_TIME = 1;
+        TimeUnit KEEP_ALIVE_TIME_UNIT = TimeUnit.SECONDS;
+        BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<Runnable>();
+        executorService = new ThreadPoolExecutor(NUMBER_OF_CORES,
+                NUMBER_OF_CORES * 2,
+                KEEP_ALIVE_TIME,
+                KEEP_ALIVE_TIME_UNIT,
+                taskQueue);
 
-        btn3.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                deleteOneRow();
-                p.edit().putInt("value", -1).apply();
-                Toast.makeText(MainActivity.this, "删除成功", Toast.LENGTH_SHORT).show();
-            }
-        });
-        //训练
-        btn4.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // get it
-                int value = -1;
-                value = p.getInt("value",value);
-                //没有初始化
-                if(value==-1){
-                    value=range/2;
-                }
-                double threshold = train(value);
-                p.edit().putFloat("threshold", (float) threshold).apply();
-
-                //训练音频
-//                List<MyAudioData> allAudioDatas = DataSupport.findAll(MyAudioData.class);
-//                Double[][] myAudioData = new Double[allAudioDatas.size()][finalAudioLength];
-//                i = 0;
-//                for (MyAudioData row : allAudioDatas) {
-//                    myAudioData[i] = row.getAudioArray();
-//                    i++;
-//                }
-//                double threshold2 = Trainer.dentID(myAudioData);
-//                p.edit().putFloat("threshold2", (float) threshold2).apply();
-                Log.d(TAG, "onClick: threshold" + threshold);
-            }
-        });
-        //初始化seekbar范围
-        SharedPreferences p = getApplicationContext().getSharedPreferences("Myprefs",
+        //如果没有初始化过难度就初始化一下
+        p = getApplicationContext().getSharedPreferences("Myprefs",
                 Context.MODE_PRIVATE);
-        p.edit().putInt("range", range).apply();
-    }
-
-    private double train(int level){
-        List<KnockData> allDatas = DataSupport.findAll(KnockData.class);
-        Double[][] myData = new Double[allDatas.size()][finalLength];
-        int i = 0;
-        for (KnockData row : allDatas) {
-            myData[i] = row.getArray();
-            i++;
+        int value = -1;
+        value = p.getInt("value", value);
+        if(value==-1){
+            p.edit().putInt("value", 5).apply();
+            p.edit().putInt("range", 10).apply();
         }
-        //double threshold = Trainer.dentID(myData,level,range);
-        KNNAlgorithm knnAlgorithm = new KNNAlgorithm(myData);
-        double threshold = knnAlgorithm.getThreshold();
-        return threshold;
     }
 
     @Override

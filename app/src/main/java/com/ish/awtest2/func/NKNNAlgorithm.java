@@ -1,5 +1,7 @@
 package com.ish.awtest2.func;
 
+import android.util.Log;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -12,10 +14,23 @@ public class NKNNAlgorithm {
     private double[] threshold;
     private int classNum; // 聚类后的类的数量
     private KNNAlgorithm[] knnAlgorithms = null;
+    //设置难度
+    private int range;
+    private int level;
 
     public NKNNAlgorithm(Double[][] data) {
         this.data = data;
         cluster();
+    }
+
+    public NKNNAlgorithm(Double[][] data,int level,int range) {
+        this.data = data;
+        cluster();
+        this.level = level;
+        this.range = range;
+        for(int i=0;i<this.label.length;++i){
+            Log.d("aa", "NKNNAlgorithm: " + i + ":" + label[i] );
+        }
     }
 
     public NKNNAlgorithm(Double[][] data, int[] label, double[] threshold) {
@@ -48,7 +63,7 @@ public class NKNNAlgorithm {
         threshold = new double[classNum];
         for (int i = 0; i < classNum; ++i) {
             knnAlgorithms[i] = new KNNAlgorithm(getDataByClassNum(data, label, i + 1));
-            threshold[i] = knnAlgorithms[i].getThreshold();
+            threshold[i] = knnAlgorithms[i].getThreshold(level,range);
         }
     }
 
@@ -120,9 +135,10 @@ public class NKNNAlgorithm {
             }
         }
 
-        data = (Double[][]) newData.toArray();
+        data = new Double[newData.size()][];
         label = new int[newLabel.size()];
-        for (int i = 0; i < label.length; ++i) {
+        for (int i = 0; i < newData.size(); ++i) {
+            data[i] = newData.get(i);
             label[i] = newLabel.get(i);
         }
     }
@@ -132,7 +148,7 @@ public class NKNNAlgorithm {
      */
     private int[] getNumOfEachClass() {
         int[] num = new int[classNum];
-        for (int i = 0; i < classNum; ++i) {
+        for (int i = 0; i < label.length; ++i) {
             ++num[label[i] - 1];
         }
         return num;
@@ -170,8 +186,8 @@ public class NKNNAlgorithm {
         // 2. 比上一个距离小
         double threshold = Utils.mean(dis) + Utils.std(dis);
         classNum = 1;
+        label[0] = 1;
         label[1] = 1;
-        label[2] = 1;
         for (int i = 2; i < len; ++i) {
             if (dis[i] <= threshold || dis[i] < dis[i - 1]) {
                 label[i] = label[i - 1];
@@ -179,6 +195,10 @@ public class NKNNAlgorithm {
                 ++classNum;
                 label[i] = classNum;
             }
+        }
+
+        for(int i=0;i<index.length;++i){
+            Log.d("aa", "NKNNAlgorithm: " + i + ":" + index[i] );
         }
 
         // 恢复标签与 data 的对应关系
@@ -219,7 +239,7 @@ public class NKNNAlgorithm {
 
                     if (d2 / d1 < minD) {
                         minD = d2 / d1;
-                        minClassNum = j;
+                        minClassNum = j + 1;
                     }
                 }
 
@@ -228,6 +248,7 @@ public class NKNNAlgorithm {
                     modified = true;
                     for (int j = 0; j < len; ++j) {
                         if (label[j] - 1 == i) {
+                            //Log.i("aa", String.valueOf(minClassNum));
                             label[j] = minClassNum;
                         }
                     }
@@ -292,8 +313,12 @@ public class NKNNAlgorithm {
                 res.add(data[i]);
             }
         }
-
-        return (Double[][]) res.toArray();
+        Double [][]result = new Double[res.size()][];
+        for(int i=0;i<res.size();i++){
+            result[i] = res.get(i);
+        }
+//        return (Double[][]) res.toArray();
+        return result;
     }
 
     /**
@@ -321,11 +346,15 @@ public class NKNNAlgorithm {
         disIndex[0] = index[0];
         disIndex[1] = index[1];
         visited[index[0]] = visited[index[1]] = true;
-
+        Log.d("1,2", "1 and 2: " + index[0] +" " + index[1]);
         // 接着遍历剩下的
         for (int i = 2; i < len; ++i) {
             minDis = myFindMin(pdis, visited, index);
+//            if (visited[index[1]]) {
+//                Log.e("aa", "error");
+//            }
             visited[index[1]] = true;
+            //Log.i("aa", String.valueOf(index[1]));
             disIndex[i] = index[1];
             dis[i] = minDis;
         }
@@ -351,12 +380,21 @@ public class NKNNAlgorithm {
             if (visited != null && !visited[i]) {
                 continue;
             }
-            for (int j = i + 1; j < len; ++j) {
+            for (int j = 0; j < len; ++j) {
                 // 再与在 visited 数组中标记为 false (或 visited 为 null) 的样本
-                if ((visited == null || !visited[j]) && dis[i][j] < minDis) {
+                if ((visited == null || !visited[j]) && dis[i][j] < minDis && i!= j) {
                     minDis = dis[i][j];
                     index[0] = i;
                     index[1] = j;
+                }
+            }
+        }
+        Log.d("pair", "pair i and j: " + index[0] +" " + index[1] +  " " + minDis);
+        if (minDis == Double.MAX_VALUE) {
+            //Log.i("aa", "minDis = max");
+            for (int i = 0; i < visited.length; ++i) {
+                if (visited[i] == false) {
+                    //Log.i("aa", "visited" + i + "=false");
                 }
             }
         }

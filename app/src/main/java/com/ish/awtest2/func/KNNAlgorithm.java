@@ -18,15 +18,11 @@ public class KNNAlgorithm {
      * @param data 用户样本
      */
     public KNNAlgorithm(Double[][] data) {
-        Log.d("!", "KNNAlgorithm: " + data[0][0]);
         this.weight = Trainer.calPower(data);
         this.data = new Double[data.length][];
         for(int i =0 ;i<data.length;i++){
             this.data[i] = std(data[i],weight);
         }
-        Log.d("!", "KNNAlgorithm: " + weight[0]);
-        Log.d("!", "KNNAlgorithm: " + this.data[0][0]);
-
 //        this.data = data;
         // 未传入阈值 说明样本未被训练过，需先进行训练以计算阈值
         train();
@@ -45,8 +41,10 @@ public class KNNAlgorithm {
     /**
      * 获取训练后计算的阈值
      * @return threshold
+     * @param level
+     * @param range
      */
-    public double getThreshold() {
+    public double getThreshold(int level, int range) {
         return threshold;
     }
 

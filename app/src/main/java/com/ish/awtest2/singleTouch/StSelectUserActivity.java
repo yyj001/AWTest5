@@ -71,7 +71,7 @@ public class StSelectUserActivity extends WearableActivity {
         mRecyclerView = (WearableRecyclerView) findViewById(R.id.st_select_recycler_view);
         mRecyclerView.setLayoutManager(
                 new WearableLinearLayoutManager(this));
-        //mRecyclerView.setEdgeItemsCenteringEnabled(true);
+        mRecyclerView.setEdgeItemsCenteringEnabled(true);
         CustomScrollingLayoutCallback customScrollingLayoutCallback =
                 new CustomScrollingLayoutCallback();
         WearableLinearLayoutManager manager = new WearableLinearLayoutManager(this, customScrollingLayoutCallback);
