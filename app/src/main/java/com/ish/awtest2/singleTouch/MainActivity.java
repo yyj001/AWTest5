@@ -33,6 +33,7 @@ import com.ish.awtest2.bean.KnockData;
 import com.ish.awtest2.bean.MyAudioData;
 import com.ish.awtest2.bean.StLabel;
 import com.ish.awtest2.bean.StThresholds;
+import com.ish.awtest2.bean.StWeight;
 import com.ish.awtest2.func.Cut;
 import com.ish.awtest2.func.FFT;
 import com.ish.awtest2.func.GCC;
@@ -385,8 +386,15 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             trainData[r] = row.getArray();
             r++;
         }
-        //训练数据
+        //删除旧weight
+        DataSupport.deleteAll(StWeight.class, "userName = ?", userName);
+        //weight
         Double[] weight = Trainer.calPower(trainData);
+        //存weight
+        StWeight stWeight = new StWeight();
+        stWeight.initData(userName,weight);
+        stWeight.save();
+        //std
         for(int i =0 ;i<trainData.length;i++){
             trainData[i] = std(trainData[i],weight);
         }
@@ -395,9 +403,18 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         } else {
         }
         nknnAlgorithm.generateKNNAlgorithm();
+        //删除旧数据
+        DataSupport.deleteAll(KnockData.class, "userName = ?", userName);
+        Double[][] newTrainData = nknnAlgorithm.getData();
+        //存新的数据,已经std
+        for(int i=0;i<newTrainData.length;++i){
+          KnockData newKnockData = new KnockData();
+          newKnockData.initData(userName,newTrainData[i]);
+          newKnockData.save();
+        }
         //删除旧的threshold
         DataSupport.deleteAll(StThresholds.class, "userName = ?", userName);
-        //取得所有的阈值然后保存
+        //存threshold
         double[][] allThreshold = nknnAlgorithm.getAllThreshold();
         for (int i = 0; i < allThreshold.length; ++i) {
             StThresholds stThresholds = new StThresholds();

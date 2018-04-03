@@ -22,15 +22,16 @@ public class NKNNAlgorithm {
     public NKNNAlgorithm(Double[][] data) {
         this.data = data;
         cluster();
+        for (int i = 0; i < this.label.length; ++i) {
+            Log.d("aa", "NKNNAlgorithm: " + i + ":" + label[i]);
+        }
     }
 
     public NKNNAlgorithm(Double[][] data, int level, int range) {
         this.data = data;
         this.level = level;
         this.range = range;
-//        for (int i = 0; i < this.label.length; ++i) {
-//            Log.d("aa", "NKNNAlgorithm: " + i + ":" + label[i]);
-//        }
+
     }
 
     public NKNNAlgorithm(Double[][] data, int[] label, double[] threshold, int level, int range) {
@@ -217,9 +218,9 @@ public class NKNNAlgorithm {
             }
         }
 
-        for (int i = 0; i < index.length; ++i) {
-            Log.d("aa", "NKNNAlgorithm: " + i + ":" + index[i]);
-        }
+//        for (int i = 0; i < index.length; ++i) {
+//            Log.d("aa", "NKNNAlgorithm: " + i + ":" + index[i]);
+//        }
 
         // 恢复标签与 data 的对应关系
         int[] tmp = new int[len];

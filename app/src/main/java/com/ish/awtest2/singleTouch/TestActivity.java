@@ -33,6 +33,7 @@ import com.ish.awtest2.bean.KnockData;
 import com.ish.awtest2.bean.MyAudioData;
 import com.ish.awtest2.bean.StLabel;
 import com.ish.awtest2.bean.StThresholds;
+import com.ish.awtest2.bean.StWeight;
 import com.ish.awtest2.func.Cut;
 import com.ish.awtest2.func.FFT;
 import com.ish.awtest2.func.Filter;
@@ -413,11 +414,27 @@ public class TestActivity extends WearableActivity implements SensorEventListene
             trainData[r] = row.getArray();
             r++;
         }
-        //std
-        weight = Trainer.calPower(trainData);
-        for (int i = 0; i < trainData.length; i++) {
-            trainData[i] = std(trainData[i], weight);
+        //取出weight
+        List<StWeight> weightDatas = DataSupport.where("userName = ?", userName).find(StWeight.class);
+        //如果没有weight,数据是原生的，就要std
+        if (weightDatas.size() == 0) {
+            weight = Trainer.calPower(trainData);
+            for (int i = 0; i < trainData.length; i++) {
+                trainData[i] = std(trainData[i], weight);
+            }
         }
+        //有weight，就不需要std
+        else {
+            Double[][] weightDataArray = new Double[weightDatas.size()][];
+            r = 0;
+            for (StWeight row : weightDatas) {
+                weightDataArray[r] = row.getArray();
+                r++;
+            }
+            //std
+            weight = weightDataArray[0];
+        }
+
 
         //取出阈值数据
         List<StThresholds> allThresholdDatas = DataSupport.where("userName = ?", userName)
