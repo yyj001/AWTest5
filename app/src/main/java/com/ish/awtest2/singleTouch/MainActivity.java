@@ -18,6 +18,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
+import android.support.wearable.activity.ConfirmationActivity;
 import android.support.wearable.activity.WearableActivity;
 import android.util.Log;
 import android.view.View;
@@ -30,15 +31,19 @@ import android.widget.Toast;
 import com.ish.awtest2.R;
 import com.ish.awtest2.bean.KnockData;
 import com.ish.awtest2.bean.MyAudioData;
+import com.ish.awtest2.bean.StLabel;
+import com.ish.awtest2.bean.StThresholds;
 import com.ish.awtest2.func.Cut;
 import com.ish.awtest2.func.FFT;
 import com.ish.awtest2.func.GCC;
 import com.ish.awtest2.func.IIRFilter;
 import com.ish.awtest2.func.KNNAlgorithm;
 import com.ish.awtest2.func.LimitQueue;
+import com.ish.awtest2.func.NKNNAlgorithm;
+import com.ish.awtest2.func.Trainer;
+import com.wang.avi.AVLoadingIndicatorView;
 
 import org.litepal.crud.DataSupport;
-import org.litepal.tablemanager.Connector;
 
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -50,13 +55,15 @@ import java.util.concurrent.TimeUnit;
 import static android.media.AudioRecord.READ_NON_BLOCKING;
 
 
-public class MainActivity extends WearableActivity implements SensorEventListener {
+public class MainActivity extends WearableActivity implements SensorEventListener, View.OnClickListener {
 
     //view
     private TextView mTextView;
     private TextView mTextViewCount;
     private EditText editText;
     private Button btn;
+    private Button saveBtn;
+    AVLoadingIndicatorView animView;
     private SharedPreferences p;
     private int range = 10;
     private SensorManager sm;
@@ -284,12 +291,49 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
     public void iniView() {
         btn = (Button) findViewById(R.id.btn);
+        saveBtn = (Button) findViewById(R.id.save_btn);
         mTextView = (TextView) findViewById(R.id.text);
         mTextViewCount = (TextView) findViewById(R.id.text_count);
         editText = (EditText) findViewById(R.id.st_name_edtxt);
-        btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        btn.setOnClickListener(this);
+        saveBtn.setOnClickListener(this);
+        animView = (AVLoadingIndicatorView) findViewById(R.id.loading_anim);
+        animView.hide();
+
+        //创建线程池
+        int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
+        int KEEP_ALIVE_TIME = 1;
+        TimeUnit KEEP_ALIVE_TIME_UNIT = TimeUnit.SECONDS;
+        BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<Runnable>();
+        executorService = new ThreadPoolExecutor(NUMBER_OF_CORES,
+                NUMBER_OF_CORES * 2,
+                KEEP_ALIVE_TIME,
+                KEEP_ALIVE_TIME_UNIT,
+                taskQueue);
+
+        //如果没有初始化过难度就初始化一下
+        p = getApplicationContext().getSharedPreferences("Myprefs",
+                Context.MODE_PRIVATE);
+        int value = -1;
+        value = p.getInt("value", value);
+        if (value == -1) {
+            p.edit().putInt("value", 5).apply();
+            p.edit().putInt("range", 10).apply();
+        }
+    }
+
+    @Override
+    public void onPause() {
+        sm.unregisterListener(this);
+        handler.removeCallbacks(runnable);
+        super.onPause();
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            //开始按钮
+            case R.id.btn:
                 //停止
                 if (flag) {
                     ifStart = false;
@@ -311,33 +355,91 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                         //knockCount = 0;
                     }
                 }
-            }
-        });
-        int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
-        int KEEP_ALIVE_TIME = 1;
-        TimeUnit KEEP_ALIVE_TIME_UNIT = TimeUnit.SECONDS;
-        BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<Runnable>();
-        executorService = new ThreadPoolExecutor(NUMBER_OF_CORES,
-                NUMBER_OF_CORES * 2,
-                KEEP_ALIVE_TIME,
-                KEEP_ALIVE_TIME_UNIT,
-                taskQueue);
-
-        //如果没有初始化过难度就初始化一下
-        p = getApplicationContext().getSharedPreferences("Myprefs",
-                Context.MODE_PRIVATE);
-        int value = -1;
-        value = p.getInt("value", value);
-        if(value==-1){
-            p.edit().putInt("value", 5).apply();
-            p.edit().putInt("range", 10).apply();
+                break;
+            //保存按钮
+            case R.id.save_btn:
+                if (knockCount == 0) {
+                    Toast.makeText(this, "empty data", Toast.LENGTH_SHORT).show();
+                } else {
+                    animView.show();
+                    executorService.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            trainData();
+                        }
+                    });
+                }
+                break;
+            default:
         }
     }
 
-    @Override
-    public void onPause() {
-        sm.unregisterListener(this);
-        handler.removeCallbacks(runnable);
-        super.onPause();
+
+    private void trainData() {
+        //取出训练数据
+        String userName = editText.getText().toString();
+        List<KnockData> allDatas = DataSupport.where("userName = ?", userName).find(KnockData.class);
+        Double[][] trainData = new Double[allDatas.size()][finalLength];
+        int r = 0;
+        for (KnockData row : allDatas) {
+            trainData[r] = row.getArray();
+            r++;
+        }
+        //训练数据
+        Double[] weight = Trainer.calPower(trainData);
+        for(int i =0 ;i<trainData.length;i++){
+            trainData[i] = std(trainData[i],weight);
+        }
+        NKNNAlgorithm nknnAlgorithm = new NKNNAlgorithm(trainData);
+        if (nknnAlgorithm.hasOneSampleClass()) {
+        } else {
+        }
+        nknnAlgorithm.generateKNNAlgorithm();
+        //删除旧的threshold
+        DataSupport.deleteAll(StThresholds.class, "userName = ?", userName);
+        //取得所有的阈值然后保存
+        double[][] allThreshold = nknnAlgorithm.getAllThreshold();
+        for (int i = 0; i < allThreshold.length; ++i) {
+            StThresholds stThresholds = new StThresholds();
+            stThresholds.initData(editText.getText().toString(), allThreshold[i]);
+            stThresholds.save();
+        }
+        //删除旧label
+        DataSupport.deleteAll(StLabel.class, "userName = ?", userName);
+        //保存label
+        int[] label = nknnAlgorithm.getLabel();
+        Log.d(TAG, "trainData: labelsize" + label.length);
+        StLabel stLabel = new StLabel();
+        stLabel.initData(editText.getText().toString(), label);
+        stLabel.save();
+        //隐藏动画
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                animView.hide();
+            }
+        });
+        //成功动画
+        Intent intent = new Intent(MainActivity.this, ConfirmationActivity.class);
+        intent.putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE,
+                ConfirmationActivity.SUCCESS_ANIMATION);
+        intent.putExtra(ConfirmationActivity.EXTRA_MESSAGE,
+                getString(R.string.msg_sent));
+        startActivity(intent);
+    }
+
+    /**
+     * std
+     *
+     * @param rowData
+     * @param weight
+     * @return
+     */
+    private Double[] std(Double[] rowData, Double[] weight) {
+        Double[] result = new Double[rowData.length];
+        for (int i = 0; i < rowData.length; i++) {
+            result[i] = rowData[i] * weight[i];
+        }
+        return result;
     }
 }

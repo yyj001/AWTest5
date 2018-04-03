@@ -22,6 +22,8 @@ import com.ish.awtest2.R;
 import com.ish.awtest2.adapter.MyAdapter;
 import com.ish.awtest2.bean.KnockData;
 import com.ish.awtest2.bean.SettingItem;
+import com.ish.awtest2.bean.StLabel;
+import com.ish.awtest2.bean.StThresholds;
 import com.ish.awtest2.mview.CustomScrollingLayoutCallback;
 
 import org.litepal.crud.DataSupport;
@@ -103,6 +105,8 @@ public class StDeleteActivity extends WearableActivity {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         DataSupport.deleteAll(KnockData.class, "userName = ?", myName);
+                        DataSupport.deleteAll(StThresholds.class, "userName = ?", myName);
+                        DataSupport.deleteAll(StLabel.class, "userName = ?", myName);
                         //移出动画
                         settingItemList.remove(pos);
                         myAdapter.notifyItemRemoved(pos);

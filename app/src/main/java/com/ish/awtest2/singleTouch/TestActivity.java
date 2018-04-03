@@ -31,6 +31,8 @@ import android.widget.Toast;
 import com.ish.awtest2.R;
 import com.ish.awtest2.bean.KnockData;
 import com.ish.awtest2.bean.MyAudioData;
+import com.ish.awtest2.bean.StLabel;
+import com.ish.awtest2.bean.StThresholds;
 import com.ish.awtest2.func.Cut;
 import com.ish.awtest2.func.FFT;
 import com.ish.awtest2.func.Filter;
@@ -134,6 +136,8 @@ public class TestActivity extends WearableActivity implements SensorEventListene
      * 是否已经初始化数据
      */
     boolean ifIniData = false;
+
+    private Double[] weight;
 
     private static final String TAG = "sensorTest";
     private String s = "";
@@ -327,6 +331,9 @@ public class TestActivity extends WearableActivity implements SensorEventListene
 //                        s = "";
                         //将新的敲击数据加入对比
                         //double newDis = Trainer.getNewDis(trainData, finalData);
+                        for (int i = 0; i < finalLength; i++) {
+                            finalData[i] = finalData[i] * weight[i];
+                        }
                         boolean isme = nknnAlgorithm.isMe(finalData);
                         //隐藏手指，显示动画
                         fingerImage.setVisibility(GONE);
@@ -390,6 +397,7 @@ public class TestActivity extends WearableActivity implements SensorEventListene
                 getTrainData();
             }
         });
+        //getTrainData();
     }
 
     /**
@@ -405,6 +413,31 @@ public class TestActivity extends WearableActivity implements SensorEventListene
             trainData[r] = row.getArray();
             r++;
         }
+        //std
+        weight = Trainer.calPower(trainData);
+        for (int i = 0; i < trainData.length; i++) {
+            trainData[i] = std(trainData[i], weight);
+        }
+
+        //取出阈值数据
+        List<StThresholds> allThresholdDatas = DataSupport.where("userName = ?", userName)
+                .find(StThresholds.class);
+        double[][] allThreshold = new double[allThresholdDatas.size()][];
+        r = 0;
+        for (StThresholds row : allThresholdDatas) {
+            allThreshold[r] = row.getArray();
+            r++;
+        }
+        //取出label数据
+        List<StLabel> labels = DataSupport.where("userName = ?", userName)
+                .find(StLabel.class);
+        int[][] label = new int[labels.size()][];
+        r = 0;
+        for (StLabel row : labels) {
+            label[r] = row.getArray();
+            r++;
+        }
+
         //初始化第一个来对齐
         System.arraycopy(trainData[0], 0, firstKnockx, 0, ampLength);
         System.arraycopy(trainData[0], ampLength, firstKnocky, 0, ampLength);
@@ -417,12 +450,41 @@ public class TestActivity extends WearableActivity implements SensorEventListene
         int value = 5;
         value = p.getInt("value", value);
         range = p.getInt("range", range);
-
-        nknnAlgorithm = new NKNNAlgorithm(trainData);
-        if (nknnAlgorithm.hasOneSampleClass()) {
+        /**
+         * 还没有训练过的数据
+         */
+        double[] newThreshold = new double[allThreshold.length];
+        if (labels.size() == 0) {
+            nknnAlgorithm = new NKNNAlgorithm(trainData);
+            nknnAlgorithm.setLevel(value, range);
+            nknnAlgorithm.generateKNNAlgorithm();
+            //保存thresholds
+            double[][] allThresholds = nknnAlgorithm.getAllThreshold();
+            for (int i = 0; i < allThresholds.length; ++i) {
+                StThresholds stThresholds = new StThresholds();
+                stThresholds.initData(userName, allThresholds[i]);
+                stThresholds.save();
+            }
+            //保存label
+            int[] l = nknnAlgorithm.getLabel();
+            StLabel stLabel = new StLabel();
+            stLabel.initData(userName, l);
+            stLabel.save();
         } else {
+            //通过难度
+            int stepNum = value - range / 2;
+            for (int i = 0; i < allThreshold.length; ++i) {
+                int index = allThreshold[i].length - (int) Math.ceil(allThreshold[i].length * 0.1);
+                double stepSize = Math.abs(allThreshold[i][0] - allThreshold[i][allThreshold[i].length - 1])
+                        / (allThreshold[i].length - 1);
+                newThreshold[i] = allThreshold[i][index] - stepNum * stepSize;
+            }
+            Log.d(TAG, "getTrainData: labelsize" + label[0].length);
+            nknnAlgorithm = new NKNNAlgorithm(trainData, label[0], newThreshold, value, range);
         }
-        nknnAlgorithm.generateKNNAlgorithm();
+//        if (nknnAlgorithm.hasOneSampleClass()) {
+//        } else {
+//        }
         ifIniData = true;
     }
 
@@ -463,6 +525,21 @@ public class TestActivity extends WearableActivity implements SensorEventListene
             if (array[i] > d) {
                 result = true;
             }
+        }
+        return result;
+    }
+
+    /**
+     * std
+     *
+     * @param rowData
+     * @param weight
+     * @return
+     */
+    private Double[] std(Double[] rowData, Double[] weight) {
+        Double[] result = new Double[rowData.length];
+        for (int i = 0; i < rowData.length; i++) {
+            result[i] = rowData[i] * weight[i];
         }
         return result;
     }

@@ -18,12 +18,12 @@ public class KNNAlgorithm {
      * @param data 用户样本
      */
     public KNNAlgorithm(Double[][] data) {
-        this.weight = Trainer.calPower(data);
-        this.data = new Double[data.length][];
-        for(int i =0 ;i<data.length;i++){
-            this.data[i] = std(data[i],weight);
-        }
-//        this.data = data;
+//        this.weight = Trainer.calPower(data);
+//        this.data = new Double[data.length][];
+//        for(int i =0 ;i<data.length;i++){
+//            this.data[i] = std(data[i],weight);
+//        }
+        this.data = data;
         // 未传入阈值 说明样本未被训练过，需先进行训练以计算阈值
         train();
     }
@@ -46,6 +46,11 @@ public class KNNAlgorithm {
      */
     public double getThreshold(int level, int range) {
         return threshold;
+    }
+
+
+    public double[] getAllThreshold() {
+        return thresholds;
     }
 
     public double[] getThresholds() {
@@ -84,9 +89,9 @@ public class KNNAlgorithm {
      * @return 本人返回 True (距离 <= 阈值) 非本人返回 False
      */
     public boolean isMe(Double[] testData) {
-        Double[] newTestData = std(testData,weight);
-        Log.d("a", "isMe: " + nearestDis(data, newTestData) + "  t:"+threshold);
-        return nearestDis(data, newTestData) <= threshold;
+        //Double[] newTestData = std(testData,weight);
+        Log.d("a", "isMe: " + nearestDis(data, testData) + "  t:"+threshold);
+        return nearestDis(data, testData) <= threshold;
     }
 
     /**
@@ -97,7 +102,7 @@ public class KNNAlgorithm {
      */
     private void train() {
         // 打乱样本
-        //shuffle(this.data);
+        shuffle(this.data);
         // 计算会用到的值
         int sampleSize = data.length;
         int trainSize = (int) Math.floor(sampleSize * 0.6);

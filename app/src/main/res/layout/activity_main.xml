@@ -9,7 +9,7 @@
     tools:context="com.ish.awtest2.singleTouch.MainActivity"
     tools:deviceIds="wear">
 
-    <ScrollView
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
@@ -24,7 +24,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerHorizontal="true"
-                android:text="计数0"
+                android:text="count0"
                 android:textColor="@color/white"
                 android:textSize="23sp" />
 
@@ -34,32 +34,46 @@
                 android:layout_height="wrap_content"
                 android:layout_below="@+id/text_count"
                 android:layout_centerHorizontal="true"
-                android:text="加速度"
+                android:text="ACCELEROMETER"
                 android:textColor="@color/white" />
 
             <EditText
                 android:id="@+id/st_name_edtxt"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
-                android:hint="input user's name..."
                 android:layout_below="@id/text"
                 android:layout_marginLeft="20dp"
                 android:layout_marginRight="20dp"
-                android:gravity="center"/>
+                android:gravity="center"
+                android:hint="input user's name..." />
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/st_name_edtxt"
+                android:layout_centerHorizontal="true"
+                android:orientation="horizontal">
+
                 <Button
                     android:id="@+id/btn"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_below="@+id/st_name_edtxt"
-                    android:layout_centerHorizontal="true"
-                    android:text="开始" />
+                    android:text="Start" />
+
+                <Button
+                    android:id="@+id/save_btn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Save" />
             </LinearLayout>
 
+            <com.wang.avi.AVLoadingIndicatorView
+                android:id="@+id/loading_anim"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_centerInParent="true"
+                app:indicatorColor="@color/blue"
+                app:indicatorName="PacmanIndicator" />
         </RelativeLayout>
-    </ScrollView>
-
+    </FrameLayout>
 </android.support.wearable.view.BoxInsetLayout>

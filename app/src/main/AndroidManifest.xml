@@ -66,6 +66,7 @@
         <activity
             android:name=".singleTouch.StSelectUserActivity"
             android:label="@string/title_activity_st_select_user">
+
         </activity>
     </application>
 

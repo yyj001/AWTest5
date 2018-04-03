@@ -2,10 +2,12 @@
 <litepal>
     <dbname value="mydatabase" ></dbname>
 
-    <version value="6" ></version>
+    <version value="8" ></version>
     <list>
         <mapping class = "com.ish.awtest2.bean.KnockData"></mapping>
         <mapping class = "com.ish.awtest2.bean.MyAudioData"></mapping>
         <mapping class = "com.ish.awtest2.bean.PinCodeKnockData"></mapping>
+        <mapping class = "com.ish.awtest2.bean.StThresholds"></mapping>
+        <mapping class = "com.ish.awtest2.bean.StLabel"></mapping>
     </list>
 </litepal>
