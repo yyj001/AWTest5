@@ -14,27 +14,36 @@ import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.ish.awtest2.R;
+import com.ish.awtest2.bean.KnockData;
 import com.ish.awtest2.bean.PinCodeKnockData;
 import com.ish.awtest2.func.Cut;
 import com.ish.awtest2.func.FFT;
 import com.ish.awtest2.func.GCC;
 import com.ish.awtest2.func.IIRFilter;
 import com.ish.awtest2.func.LimitQueue;
+import com.ish.awtest2.singleTouch.MainActivity;
 
 import org.litepal.crud.DataSupport;
 import org.litepal.tablemanager.Connector;
 
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class PinCodeMainActivity extends WearableActivity implements SensorEventListener {
 
     private TextView countTextView;
     private TextView valueTextView;
     private TextView messageTextView;
+    private EditText editText;
     private Button startBtn;
     private Button testBtn;
     private Button showBtn;
@@ -96,8 +105,10 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
     private int finalLength = 192;
     private Double[] firstKnockX = new Double[ampLength];
     private Double[] firstKnockY = new Double[ampLength];
-    private Double[] firstKnockZ = new Double[ampLength+2];
+    private Double[] firstKnockZ = new Double[ampLength + 2];
     private Double[] finalData = new Double[finalLength];
+
+    private ExecutorService executorService;
 
     private static final String TAG = "sensor";
     private String s = "";
@@ -130,6 +141,7 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
         countTextView = (TextView) findViewById(R.id.pincode_text_count);
         valueTextView = (TextView) findViewById(R.id.pincode_text_value);
         messageTextView = (TextView) findViewById(R.id.pincode_message);
+        editText = (EditText) findViewById(R.id.pc_name_edtxt);
         startBtn = (Button) findViewById(R.id.pincode_start);
         testBtn = (Button) findViewById(R.id.pincode_test);
         showBtn = (Button) findViewById(R.id.pincode_show_database);
@@ -147,12 +159,16 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
                     countTextView.setText("0");
                     startBtn.setText("start");
                 } else {
-                    //倒计时
-                    handler.postDelayed(runnable, 200);
-                    recLen = -1;
-                    flag = true;
-                    startBtn.setText("stop");
-                    knockCount = 0;
+                    if (editText.getText().toString().trim().equals("")) {
+                        Toast.makeText(PinCodeMainActivity.this, "input user's name", Toast.LENGTH_SHORT).show();
+                    } else {
+                        //倒计时
+                        handler.postDelayed(runnable, 200);
+                        recLen = -1;
+                        flag = true;
+                        startBtn.setText("stop");
+                        //knockCount = 0;
+                    }
                 }
             }
         });
@@ -178,6 +194,17 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
             }
         });
 
+        //创建线程池
+        int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
+        int KEEP_ALIVE_TIME = 1;
+        TimeUnit KEEP_ALIVE_TIME_UNIT = TimeUnit.SECONDS;
+        BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<Runnable>();
+        executorService = new ThreadPoolExecutor(NUMBER_OF_CORES,
+                NUMBER_OF_CORES * 2,
+                KEEP_ALIVE_TIME,
+                KEEP_ALIVE_TIME_UNIT,
+                taskQueue);
+
     }
 
     private void showDatabase() {
@@ -185,13 +212,15 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
         Log.d(TAG, "行数: " + allDatas.size());
         for (PinCodeKnockData row : allDatas) {
             Double[] rowData = row.getArray();
-            String tempStr = "";
+            String tempStr = row.getUserName();
             for (int i = 0; i < rowData.length; i++) {
                 tempStr += "," + rowData[i];
             }
             Log.d(TAG, "showDatabase: " + tempStr);
+            tempStr = "";
         }
     }
+
 
     private void deleteDatabase() {
         DataSupport.deleteAll(PinCodeKnockData.class);
@@ -238,10 +267,10 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
                     dataX = xQueue.toArray(new Double[limit]);
                     dataY = yQueue.toArray(new Double[limit]);
                     dataZ = zQueue.toArray(new Double[limit]);
-                    new Thread(new Runnable() {
+                    executorService.execute(new Runnable() {
                         @Override
                         public void run() {
-//                            for(int i=0;i<limit;i++){
+                            //                            for(int i=0;i<limit;i++){
 //                               s+=","+data[i];
 //                            }
 //                            Log.d(TAG, ","+s);
@@ -269,28 +298,28 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
 //                            Log.d(TAG, "after cut,"+s);
 //                            s = "";
                             //如果是第一个敲击，记录下来，后面的敲击gcc以它对齐
-                            Double[] allAmpData = new Double[ampLength*3+2];
+                            Double[] allAmpData = new Double[ampLength * 3 + 2];
                             if (knockCount == 1) {
                                 System.arraycopy(cutDatax, 15, firstKnockX, 0, ampLength);
                                 System.arraycopy(cutDatay, 15, firstKnockY, 0, ampLength);
-                                System.arraycopy(cutDataz, 15, firstKnockZ, 0, ampLength+2);
+                                System.arraycopy(cutDataz, 15, firstKnockZ, 0, ampLength + 2);
                                 //拼接三轴振动
-                                System.arraycopy(firstKnockX,0,allAmpData,0,ampLength);
-                                System.arraycopy(firstKnockY,0,allAmpData,ampLength,ampLength);
-                                System.arraycopy(firstKnockZ,0,allAmpData,ampLength*2,ampLength+2);
-                                } else {
+                                System.arraycopy(firstKnockX, 0, allAmpData, 0, ampLength);
+                                System.arraycopy(firstKnockY, 0, allAmpData, ampLength, ampLength);
+                                System.arraycopy(firstKnockZ, 0, allAmpData, ampLength * 2, ampLength + 2);
+                            } else {
                                 Double[] gccDatax = GCC.gcc(firstKnockX, cutDatax);
                                 Double[] gccDatay = GCC.gcc(firstKnockY, cutDatay);
                                 Double[] gccDataz = GCC.gcc(firstKnockZ, cutDataz);
                                 //拼接
-                                System.arraycopy(gccDatax,0,allAmpData,0,ampLength);
-                                System.arraycopy(gccDatay,0,allAmpData,ampLength,ampLength);
-                                System.arraycopy(gccDataz,0,allAmpData,ampLength*2,ampLength+2);
+                                System.arraycopy(gccDatax, 0, allAmpData, 0, ampLength);
+                                System.arraycopy(gccDatay, 0, allAmpData, ampLength, ampLength);
+                                System.arraycopy(gccDataz, 0, allAmpData, ampLength * 2, ampLength + 2);
                             }
                             //一起fft
                             Double[] fftData = FFT.getHalfFFTData(allAmpData);
-                            System.arraycopy(allAmpData, 0, finalData, 0, ampLength*3+2);
-                            System.arraycopy(fftData, 0, finalData, ampLength*3+2, finalLength/3);
+                            System.arraycopy(allAmpData, 0, finalData, 0, ampLength * 3 + 2);
+                            System.arraycopy(fftData, 0, finalData, ampLength * 3 + 2, finalLength / 3);
 
                             runOnUiThread(new Runnable() {
                                 @Override
@@ -299,11 +328,11 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
                                 }
                             });
                             PinCodeKnockData PinCodeKnockData = new PinCodeKnockData();
-                            PinCodeKnockData.initData(finalData);
+                            PinCodeKnockData.initData(editText.getText().toString(), finalData);
                             PinCodeKnockData.saveThrows();
 
                         }
-                    }).start();
+                    });
                     flag = true;
                 }
             }

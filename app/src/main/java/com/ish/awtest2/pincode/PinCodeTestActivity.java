@@ -21,6 +21,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.ish.awtest2.R;
+import com.ish.awtest2.bean.KnockData;
 import com.ish.awtest2.bean.PinCodeKnockData;
 import com.ish.awtest2.bean.MyAudioData;
 import com.ish.awtest2.func.FFT;
@@ -119,6 +120,7 @@ public class PinCodeTestActivity extends WearableActivity implements SensorEvent
     private String s = "";
     //
     private ImageView fingerImage;
+    private String userName;
 
     Handler handler = new Handler();
     Runnable runnable = new Runnable() {
@@ -192,9 +194,7 @@ public class PinCodeTestActivity extends WearableActivity implements SensorEvent
                     datax = xQueue.toArray(new Double[limit]);
                     datay = yQueue.toArray(new Double[limit]);
                     dataz = zQueue.toArray(new Double[limit]);
-//                    new Thread(new Runnable() {
-//                        @Override
-//                        public void run() {
+
                     datax = IIRFilter.highpass(datax, IIRFilter.TYPE_AMPITUDE);
                     datax = IIRFilter.lowpass(datax, IIRFilter.TYPE_AMPITUDE);
 
@@ -270,7 +270,8 @@ public class PinCodeTestActivity extends WearableActivity implements SensorEvent
         circle[3] = (LinearLayout) findViewById(R.id.circle4);
         mVibrator = (Vibrator) getApplication().getSystemService(Service.VIBRATOR_SERVICE);
         //取出训练数据
-        List<PinCodeKnockData> allDatas = DataSupport.findAll(PinCodeKnockData.class);
+        userName = getIntent().getStringExtra("userName");
+        List<PinCodeKnockData> allDatas = DataSupport.where("userName = ?", userName).find(PinCodeKnockData.class);
         trainData = new Double[allDatas.size()][finalLength];
         int r = 0;
         for (PinCodeKnockData row : allDatas) {

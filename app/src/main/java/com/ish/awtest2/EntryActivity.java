@@ -6,6 +6,7 @@ import android.app.Activity;
 import android.view.View;
 import android.widget.TextView;
 
+import com.ish.awtest2.pincode.PcSettingActivity;
 import com.ish.awtest2.pincode.PinCodeMainActivity;
 import com.ish.awtest2.singleTouch.MainActivity;
 import com.ish.awtest2.singleTouch.STSettingActivity;
@@ -29,7 +30,7 @@ public class EntryActivity extends Activity {
         pinCodeTextView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(EntryActivity.this,PinCodeMainActivity.class));
+                startActivity(new Intent(EntryActivity.this,PcSettingActivity.class));
             }
         });
     }

@@ -15,4 +15,6 @@
     <string name="title_activity_delete">DeleteActivity</string>
     <string name="title_activity_st_delete">StDeleteActivity</string>
     <string name="title_activity_st_select_user">StSelectUserActivity</string>
+    <string name="title_activity_pc_selcet_user">PcSelcetUserActivity</string>
+    <string name="title_activity_pc_delete">PcDeleteActivity</string>
 </resources>

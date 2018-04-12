@@ -54,19 +54,33 @@
             android:label="@string/title_activity_pin_code_test" />
         <activity
             android:name=".singleTouch.SingleTouchTrainActivity"
-            android:label="@string/title_activity_single_touch_train">
-        </activity>
-        <activity android:name=".singleTouch.STSettingActivity">
-
-        </activity>
+            android:label="@string/title_activity_single_touch_train" />
+        <activity android:name=".singleTouch.STSettingActivity" />
         <activity
             android:name=".singleTouch.StDeleteActivity"
             android:label="@string/title_activity_st_delete" />
         <activity android:name="android.support.wearable.activity.ConfirmationActivity" />
         <activity
             android:name=".singleTouch.StSelectUserActivity"
-            android:label="@string/title_activity_st_select_user">
+            android:label="@string/title_activity_st_select_user" />
+        <activity android:name=".pincode.PcSettingActivity" />
+        <activity
+            android:name=".pincode.PcSelcetUserActivity"
+            android:label="@string/title_activity_pc_selcet_user">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
 
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".pincode.PcDeleteActivity"
+            android:label="@string/title_activity_pc_delete">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
     </application>
 

@@ -9,9 +9,11 @@ import org.litepal.crud.DataSupport;
  */
 
 public class PinCodeKnockData extends DataSupport{
+    private String userName;
     private String allDataString;
 
-    public void initData(Double[] array){
+    public void initData(String userName,Double[] array){
+        this.userName = userName;
         allDataString = "";
         for (int i = 0; i < array.length-1; i++) {
             allDataString = allDataString + array[i] + ",";
@@ -27,5 +29,9 @@ public class PinCodeKnockData extends DataSupport{
             array[i] = Double.valueOf(attrs[i]);
         }
         return array;
+    }
+
+    public String getUserName(){
+        return this.userName;
     }
 }
