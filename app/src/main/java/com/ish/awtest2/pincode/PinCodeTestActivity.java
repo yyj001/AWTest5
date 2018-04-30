@@ -246,7 +246,7 @@ public class PinCodeTestActivity extends WearableActivity implements SensorEvent
                             //Toast.makeText(PinCodeTestActivity.this, key + "", Toast.LENGTH_SHORT).show();
                             if(circlestate==4){
                                 if (inputString.equals(password)){
-                                    mTextViewCount.setText("sucessful!");
+                                    //mTextViewCount.setText("sucessful!");
                                 }else{
                                     mVibrator.vibrate(new long[]{10, 300}, -1);
                                     mTextViewCount.setText("try again!");
