@@ -249,7 +249,7 @@ public class PinCodeTestActivity extends WearableActivity implements SensorEvent
                                     //mTextViewCount.setText("sucessful!");
                                 }else{
                                     mVibrator.vibrate(new long[]{10, 300}, -1);
-                                    mTextViewCount.setText("try again!");
+                                    //mTextViewCount.setText("try again!");
                                 }
                                 circlestate=0;
                                 inputString="";
