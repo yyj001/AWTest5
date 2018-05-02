@@ -209,54 +209,55 @@ public class PinCodeTestActivity extends WearableActivity implements SensorEvent
 //                    Log.d(TAG, "onSensorChanged: Data" + s);
 //                    s = "";
 //                    Double[] cutData = Cut.cutMoutain(data, 50);
+                    if (!judgeshakeHands(datax) && !judgeshakeHands(datay) && !judgeshakeHands(dataz)) {
+                        Double[] cutDatax = new Double[160];
+                        Double[] cutDatay = new Double[160];
+                        Double[] cutDataz = new Double[160];
+                        System.arraycopy(datax, 40, cutDatax, 0, 160);
+                        System.arraycopy(datay, 40, cutDatay, 0, 160);
+                        System.arraycopy(dataz, 40, cutDataz, 0, 160);
 
-                    Double[] cutDatax = new Double[160];
-                    Double[] cutDatay = new Double[160];
-                    Double[] cutDataz = new Double[160];
-                    System.arraycopy(datax, 40, cutDatax, 0, 160);
-                    System.arraycopy(datay, 40, cutDatay, 0, 160);
-                    System.arraycopy(dataz, 40, cutDataz, 0, 160);
+                        //与第一个对齐
+                        Double[] gccDatax = GCC.gcc(firstKnockx, cutDatax);
+                        Double[] gccDatay = GCC.gcc(firstKnocky, cutDatay);
+                        Double[] gccDataz = GCC.gcc(firstKnockz, cutDataz);
+                        Double[] allAmpData = new Double[ampLength * 3 + 2];
+                        System.arraycopy(gccDatax, 0, allAmpData, 0, ampLength);
+                        System.arraycopy(gccDatay, 0, allAmpData, ampLength, ampLength);
+                        System.arraycopy(gccDataz, 0, allAmpData, ampLength * 2, ampLength + 2);
 
-                    //与第一个对齐
-                    Double[] gccDatax = GCC.gcc(firstKnockx, cutDatax);
-                    Double[] gccDatay = GCC.gcc(firstKnocky, cutDatay);
-                    Double[] gccDataz = GCC.gcc(firstKnockz, cutDataz);
-                    Double[] allAmpData = new Double[ampLength * 3 + 2];
-                    System.arraycopy(gccDatax, 0, allAmpData, 0, ampLength);
-                    System.arraycopy(gccDatay, 0, allAmpData, ampLength, ampLength);
-                    System.arraycopy(gccDataz, 0, allAmpData, ampLength * 2, ampLength + 2);
-
-                    //加上fft的,得到最终数据
-                    Double[] fftData = FFT.getHalfFFTData(allAmpData);
-                    System.arraycopy(allAmpData, 0, finalData, 0, ampLength * 3 + 2);
-                    System.arraycopy(fftData, 0, finalData, ampLength * 3 + 2, finalLength / 3);
-                    flag = true;
-                    key = KNN.judgeDis(trainData, finalData);
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if(circlestate==0){
-                                clearCircle();
-                            }
-                            inputCircle(circlestate);
-                            circlestate++;
-                            inputString+=key;
-                            mTextViewCount.setText(""+ key);
-                            Log.d(TAG, "run: "+inputString);
-                            //Toast.makeText(PinCodeTestActivity.this, key + "", Toast.LENGTH_SHORT).show();
-                            if(circlestate==4){
-                                if (inputString.equals(password)){
-                                    //mTextViewCount.setText("sucessful!");
-                                }else{
-                                    mVibrator.vibrate(new long[]{10, 300}, -1);
-                                    //mTextViewCount.setText("try again!");
+                        //加上fft的,得到最终数据
+                        Double[] fftData = FFT.getHalfFFTData(allAmpData);
+                        System.arraycopy(allAmpData, 0, finalData, 0, ampLength * 3 + 2);
+                        System.arraycopy(fftData, 0, finalData, ampLength * 3 + 2, finalLength / 3);
+                        flag = true;
+                        key = KNN.judgeDis(trainData, finalData);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                if(circlestate==0){
+                                    clearCircle();
                                 }
-                                circlestate=0;
-                                inputString="";
+                                inputCircle(circlestate);
+                                circlestate++;
+                                inputString+=key;
+                                mTextViewCount.setText(""+ key);
+                                Log.d(TAG, "run: "+inputString);
+                                //Toast.makeText(PinCodeTestActivity.this, key + "", Toast.LENGTH_SHORT).show();
+                                if(circlestate==4){
+                                    if (inputString.equals(password)){
+                                        //mTextViewCount.setText("sucessful!");
+                                    }else{
+                                        mVibrator.vibrate(new long[]{10, 300}, -1);
+                                        //mTextViewCount.setText("try again!");
+                                    }
+                                    circlestate=0;
+                                    inputString="";
+                                }
                             }
-                        }
-                    });
-                    //Log.d(TAG, "key: " + key);
+                        });
+                        //Log.d(TAG, "key: " + key);
+                    }
                 }
             }
         }
@@ -345,5 +346,23 @@ public class PinCodeTestActivity extends WearableActivity implements SensorEvent
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
+    }
+
+    private boolean judgeshakeHands(Double[] array) {
+        Double d = 0.22;
+        boolean result = false;
+        for (int i = 40; i < 80; ++i) {
+            //有一个值大于阈值说明就是手晃动
+            if (array[i] > d) {
+                result = true;
+            }
+        }
+        for (int i = 140; i < 170; ++i) {
+            //有一个值大于阈值说明就是手晃动
+            if (array[i] > d) {
+                result = true;
+            }
+        }
+        return result;
     }
 }
