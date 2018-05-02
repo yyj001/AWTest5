@@ -173,26 +173,26 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
             }
         });
 
-        testBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(PinCodeMainActivity.this, PinCodeTestActivity.class));
-            }
-        });
-
-        showBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showDatabase();
-            }
-        });
-
-        deleteBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                deleteDatabase();
-            }
-        });
+//        testBtn.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                startActivity(new Intent(PinCodeMainActivity.this, PinCodeTestActivity.class));
+//            }
+//        });
+//
+//        showBtn.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                showDatabase();
+//            }
+//        });
+//
+//        deleteBtn.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                deleteDatabase();
+//            }
+//        });
 
         //创建线程池
         int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
@@ -212,12 +212,12 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
         Log.d(TAG, "行数: " + allDatas.size());
         for (PinCodeKnockData row : allDatas) {
             Double[] rowData = row.getArray();
-            String tempStr = row.getUserName();
-            for (int i = 0; i < rowData.length; i++) {
-                tempStr += "," + rowData[i];
-            }
-            Log.d(TAG, "showDatabase: " + tempStr);
-            tempStr = "";
+//            String tempStr = row.getUserName();
+//            for (int i = 0; i < rowData.length; i++) {
+//                tempStr += "," + rowData[i];
+//            }
+            //Log.d(TAG, "showDatabase: " + tempStr);
+ //           tempStr = "";
         }
     }
 
@@ -324,7 +324,7 @@ public class PinCodeMainActivity extends WearableActivity implements SensorEvent
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    messageTextView.setText("please tap key" + (knockCount / 20 + 1));
+                                    messageTextView.setText("please tap key" + (knockCount%4 + 1));
                                 }
                             });
                             PinCodeKnockData PinCodeKnockData = new PinCodeKnockData();

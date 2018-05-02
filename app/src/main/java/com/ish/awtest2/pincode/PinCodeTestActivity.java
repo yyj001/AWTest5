@@ -256,7 +256,7 @@ public class PinCodeTestActivity extends WearableActivity implements SensorEvent
                             }
                         }
                     });
-                    Log.d(TAG, "key: " + key);
+                    //Log.d(TAG, "key: " + key);
                 }
             }
         }
